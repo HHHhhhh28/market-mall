@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zky.dao.ProductDao">
+
+    <resultMap id="BaseResultMap" type="com.zky.domain.po.ProductInfo">
+        <id column="id" property="id" />
+        <result column="product_id" property="productId" />
+        <result column="name" property="name" />
+        <result column="description" property="description" />
+        <result column="price" property="price" />
+        <result column="stock" property="stock" />
+        <result column="image_url" property="imageUrl" />
+        <result column="category" property="category" />
+        <result column="brand" property="brand" />
+        <result column="keywords" property="keywords" />
+        <result column="create_time" property="createTime" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+    <select id="selectByProductId" resultMap="BaseResultMap">
+        SELECT * FROM product_info WHERE product_id = #{productId}
+    </select>
+
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT * FROM product_info
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (name LIKE CONCAT('%', #{keyword}, '%') OR keywords LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="category != null and category != ''">
+                AND category = #{category}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM product_info
+    </select>
+
+</mapper>

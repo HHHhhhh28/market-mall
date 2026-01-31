@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zky.dao.CartDao">
+
+    <resultMap id="BaseResultMap" type="com.zky.domain.po.CartInfo">
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="product_id" property="productId" />
+        <result column="quantity" property="quantity" />
+        <result column="create_time" property="createTime" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+    <insert id="insert" parameterType="com.zky.domain.po.CartInfo">
+        INSERT INTO cart_info (cart_id, user_id, product_id, quantity, create_time, update_time)
+        VALUES (UUID(), #{userId}, #{productId}, #{quantity}, NOW(), NOW())
+    </insert>
+
+    <update id="update" parameterType="com.zky.domain.po.CartInfo">
+        UPDATE cart_info
+        SET quantity = #{quantity},
+            update_time = NOW()
+        WHERE user_id = #{userId} AND product_id = #{productId}
+    </update>
+
+    <delete id="delete">
+        DELETE FROM cart_info WHERE user_id = #{userId} AND product_id = #{productId}
+    </delete>
+
+    <select id="selectOne" resultMap="BaseResultMap">
+        SELECT * FROM cart_info WHERE user_id = #{userId} AND product_id = #{productId} LIMIT 1
+    </select>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT * FROM cart_info WHERE user_id = #{userId}
+    </select>
+
+    <delete id="deleteByUserId">
+        DELETE FROM cart_info WHERE user_id = #{userId}
+    </delete>
+
+</mapper>

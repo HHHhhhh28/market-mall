@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zky.dao.FavoriteDao">
+
+    <resultMap id="BaseResultMap" type="com.zky.domain.po.FavoriteInfo">
+        <id column="id" property="id" />
+        <result column="favorite_id" property="favoriteId" />
+        <result column="user_id" property="userId" />
+        <result column="product_id" property="productId" />
+        <result column="create_time" property="createTime" />
+    </resultMap>
+
+    <insert id="insert" parameterType="com.zky.domain.po.FavoriteInfo">
+        INSERT INTO favorite_info (favorite_id, user_id, product_id, create_time, update_time)
+        VALUES (#{favoriteId}, #{userId}, #{productId}, NOW(), NOW())
+    </insert>
+
+    <delete id="delete">
+        DELETE FROM favorite_info WHERE user_id = #{userId} AND product_id = #{productId}
+    </delete>
+
+    <select id="selectOne" resultMap="BaseResultMap">
+        SELECT * FROM favorite_info WHERE user_id = #{userId} AND product_id = #{productId} LIMIT 1
+    </select>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT * FROM favorite_info WHERE user_id = #{userId} ORDER BY create_time DESC
+    </select>
+
+</mapper>
