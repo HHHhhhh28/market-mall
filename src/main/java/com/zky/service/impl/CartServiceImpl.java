@@ -77,6 +77,7 @@ public class CartServiceImpl implements ICartService {
                 item.setPrice(p.getPrice());
                 item.setImageUrl(p.getImageUrl());
                 item.setTotalPrice(p.getPrice().multiply(new BigDecimal(c.getQuantity())));
+                item.setCategory(p.getCategory());
             } else {
                 item.setProductName("未知商品");
                 item.setPrice(BigDecimal.ZERO);

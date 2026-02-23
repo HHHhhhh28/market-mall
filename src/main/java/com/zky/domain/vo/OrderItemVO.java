@@ -10,4 +10,5 @@ public class OrderItemVO {
     private String productImage;
     private BigDecimal price;
     private Integer quantity;
+    private String productType; //'商品类型：NORMAL-普通商品、GROUP_BUY-拼团商品、AWARD-抽奖商品'
 }

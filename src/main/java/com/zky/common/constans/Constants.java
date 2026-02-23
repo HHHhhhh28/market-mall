@@ -9,9 +9,13 @@ public class Constants {
 
     public static class RedisKey {
         /**
-         * 商品缓存前缀
+         * 首页商品缓存前缀
          */
         public static final String MALL_PRODUCT_KEY = "mall_product_key_";
+        /**
+         * 拼团商品缓存前缀
+         */
+        public static final String GROUP_BUY_PRODUCT_KEY = "group_buy_product_key_";
         /**
          * 用户缓存前缀
          */

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zky.dao.UserLotteryDao">
+
+    <resultMap id="BaseResultMap" type="com.zky.domain.po.UserLottery">
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="lottery_count" property="lotteryCount" />
+        <result column="last_sign_date" property="lastSignDate" />
+        <result column="create_time" property="createTime" />
+        <result column="update_time" property="updateTime" />
+    </resultMap>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT *
+        FROM user_lottery
+        WHERE user_id = #{userId}
+        LIMIT 1
+    </select>
+
+    <insert id="insert" parameterType="com.zky.domain.po.UserLottery">
+        INSERT INTO user_lottery (user_id, lottery_count, last_sign_date, create_time, update_time)
+        VALUES (#{userId}, #{lotteryCount}, #{lastSignDate}, NOW(), NOW())
+    </insert>
+
+    <update id="update" parameterType="com.zky.domain.po.UserLottery">
+        UPDATE user_lottery
+        SET lottery_count = #{lotteryCount},
+            last_sign_date = #{lastSignDate},
+            update_time = NOW()
+        WHERE user_id = #{userId}
+    </update>
+
+</mapper>
+

@@ -85,6 +85,17 @@ xxl:
       # 执行器日志文件保存天数 [选填] ： 过期日志自动清理, 限制值大于等于3时生效; 否则, 如-1, 关闭自动清理功能；
       logretentiondays: 30
 
+
+dubbo:
+  application:
+    name: group-buy-market
+    version: 1.0
+  registry:
+    address: nacos://127.0.0.1:8848
+  protocol:
+    name: dubbo
+    port: -1
+
 # 日志
 logging:
   level:

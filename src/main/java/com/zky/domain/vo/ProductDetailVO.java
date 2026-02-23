@@ -21,5 +21,4 @@ public class ProductDetailVO {
     private String imageUrl;
     private String category;
     private String brand;
-    private List<String> tags;
 }
