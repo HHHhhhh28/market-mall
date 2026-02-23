@@ -13,8 +13,10 @@ public class ProductVO {
     private String name;
     private String imageUrl;
     private BigDecimal price;
+    private BigDecimal payPrice;
+    // 活动ID
+    private Long activityId;
     private String description;
     private String category;
-    private String activityId;
     private String type; // "NORMAL", "GROUP_BUY", "AWARD"
 }

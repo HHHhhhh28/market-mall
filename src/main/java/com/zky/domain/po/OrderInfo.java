@@ -21,6 +21,7 @@ public class OrderInfo {
     private String address;
     private String contactName;
     private String contactPhone;
+    private String couponId;
     private Date createTime;
     private Date updateTime;
 }

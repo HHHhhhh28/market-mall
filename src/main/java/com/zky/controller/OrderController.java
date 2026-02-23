@@ -24,11 +24,17 @@ public class OrderController {
         String orderId = orderService.createOrder(request);
         return Response.<String>builder().code("0000").info("Success").data(orderId).build();
     }
+    @PostMapping("/group-buy-create")
+    public Response<String> createGroupBuyOrder(@RequestBody OrderInfoRequestDTO request) {
+        log.info("接口 {} 被调用了", "/api/v1/mall/order/group-buy-create");
+        String orderId = orderService.createGroupBuyOrder(request);
+        return Response.<String>builder().code("0000").info("Success").data(orderId).build();
+    }
 
     @GetMapping("/list")
-    public Response<List<OrderVO>> getOrderList(@RequestParam String userId) {
+    public Response<List<OrderVO>> getOrderList(@RequestParam(value = "userId") String userId, @RequestParam(value = "productTypes",required = false, defaultValue = "") List<String> productTypes) {
         log.info("接口 {} 被调用了", "/api/v1/mall/order/list");
-        List<OrderVO> list = orderService.getOrderList(userId);
+        List<OrderVO> list = orderService.getOrderList(userId,productTypes);
         return Response.<List<OrderVO>>builder().code("0000").info("Success").data(list).build();
     }
 

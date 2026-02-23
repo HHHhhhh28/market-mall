@@ -7,6 +7,8 @@ import java.util.List;
 
 public interface IOrderService {
     String createOrder(OrderInfoRequestDTO request);
-    List<OrderVO> getOrderList(String userId);
+    List<OrderVO> getOrderList(String userId,List<String> productTypes);
     OrderVO getOrderDetail(String orderId);
+
+    String createGroupBuyOrder(OrderInfoRequestDTO request);
 }

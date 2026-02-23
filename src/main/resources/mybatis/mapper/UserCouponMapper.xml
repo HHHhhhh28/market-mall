@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zky.dao.UserCouponDao">
+
+    <resultMap id="BaseResultMap" type="com.zky.domain.po.UserCoupon">
+        <id column="id" property="id" />
+        <result column="user_id" property="userId" />
+        <result column="coupon_id" property="couponId" />
+        <result column="category" property="category" />
+        <result column="status" property="status" />
+        <result column="create_time" property="createTime" />
+    </resultMap>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT *
+        FROM user_coupon
+        WHERE user_id = #{userId}
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectAvailableOne" resultMap="BaseResultMap">
+        SELECT *
+        FROM user_coupon
+        WHERE user_id = #{userId}
+          AND coupon_id = #{couponId}
+          AND status = 0
+        LIMIT 1
+    </select>
+
+    <select id="selectAvailableByCategory" resultMap="BaseResultMap">
+        SELECT *
+        FROM user_coupon
+        WHERE user_id = #{userId}
+          AND category = #{category}
+          AND status = 0
+        ORDER BY create_time DESC
+    </select>
+
+    <insert id="insert" parameterType="com.zky.domain.po.UserCoupon">
+        INSERT INTO user_coupon (user_id, coupon_id, category, status, create_time)
+        VALUES (#{userId}, #{couponId}, #{category}, #{status}, NOW())
+    </insert>
+
+    <update id="markUsed">
+        UPDATE user_coupon
+        SET status = 1
+        WHERE user_id = #{userId}
+          AND coupon_id = #{couponId}
+          AND status = 0
+    </update>
+
+</mapper>
+

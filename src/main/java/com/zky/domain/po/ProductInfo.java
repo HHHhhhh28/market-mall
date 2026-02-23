@@ -25,4 +25,5 @@ public class ProductInfo {
     private String keywords;
     private Date createTime;
     private Date updateTime;
+    private String userTags;
 }

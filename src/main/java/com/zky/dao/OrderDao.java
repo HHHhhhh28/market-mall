@@ -13,4 +13,6 @@ public interface OrderDao {
     OrderInfo selectOrderById(@Param("orderId") String orderId);
     List<OrderItem> selectOrderItemsByOrderId(@Param("orderId") String orderId);
     List<OrderInfo> selectOrdersByUserId(@Param("userId") String userId);
+    List<String> selectProductIdsByUserId(@Param("userId") String userId);
+
 }

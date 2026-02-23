@@ -26,4 +26,44 @@
                 #{createTime})
     </insert>
 
+    <select id="selectProductIdsWithBehavior" resultType="java.lang.String">
+        SELECT DISTINCT product_id
+        FROM user_behavior
+        WHERE create_time >= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+    </select>
+
+    <select id="selectWeightedUserProfileByProductId" resultType="com.zky.algorithm.impl.UserProfileModel$BehaviorUserProfile">
+        SELECT
+        CASE WHEN u.gender = 0 THEN '女' WHEN u.gender = 1 THEN '男' ELSE '通用' END AS gender,
+        CASE
+        WHEN u.age &lt; 18 THEN 'under18'
+        WHEN u.age BETWEEN 18 AND 25 THEN '18-25'
+        WHEN u.age BETWEEN 26 AND 35 THEN '26-35'
+        WHEN u.age BETWEEN 36 AND 45 THEN '36-45'
+        WHEN u.age BETWEEN 46 AND 55 THEN '46-55'
+        ELSE 'over55'
+        END AS ageRange,
+        SUM(CASE
+        WHEN ub.behavior_type = 'BUY' THEN 5
+        WHEN ub.behavior_type = 'COLLECT' THEN 3
+        WHEN ub.behavior_type = 'CLICK' THEN 1
+        ELSE 0
+        END) AS weight
+        FROM user_behavior ub
+        LEFT JOIN user_info u ON ub.user_id = u.user_id
+        WHERE ub.product_id = #{productId}
+        AND ub.create_time >= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+        AND u.gender IN (0,1)
+        AND u.age IS NOT NULL
+        GROUP BY gender, ageRange
+    </select>
+
+    <select id="selectDistinctUserCountByProductId" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT user_id)
+        FROM user_behavior
+        WHERE product_id = #{productId}
+          AND create_time >= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+          AND behavior_type IN ('CLICK','COLLECT','BUY')
+    </select>
+
 </mapper>

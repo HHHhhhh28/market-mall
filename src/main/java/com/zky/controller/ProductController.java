@@ -2,7 +2,10 @@ package com.zky.controller;
 
 import com.github.pagehelper.PageInfo;
 import com.zky.common.response.Response;
+import com.zky.domain.dto.GroupBuyProductInfoRequestDTO;
 import com.zky.domain.dto.ProductInfoRequestDTO;
+import com.zky.domain.dto.RecommendationRequestDTO;
+import com.zky.domain.vo.GroupBuyProductVO;
 import com.zky.service.IProductService;
 import com.zky.domain.vo.ProductDetailVO;
 import com.zky.domain.vo.ProductVO;
@@ -25,6 +28,25 @@ public class ProductController {
         log.info("接口 {} 被调用了", "/api/v1/mall/product/detail/" + productId);
         ProductDetailVO vo = productService.getProductDetail(productId);
         return Response.<ProductDetailVO>builder().code("0000").info("Success").data(vo).build();
+    }
+
+    @PostMapping("/group_buy_detail")
+    public Response<GroupBuyProductVO> getGroupBuyProductDetail(@RequestBody GroupBuyProductInfoRequestDTO request) {
+        log.info("接口 {} 被调用了", "/api/v1/mall/product/group_buy_detail/" + request.getProductId());
+        GroupBuyProductVO vo = productService.getGroupBuyProductDetail(request);
+        return Response.<GroupBuyProductVO>builder().code("0000").info("Success").data(vo).build();
+    }
+
+    @PostMapping("/group_buy_progress")
+    public Response<List<GroupBuyProductVO>> getGroupBuyProgress(@RequestParam String userId) {
+        log.info("接口 {} 被调用了，参数：userId={}", "/api/v1/mall/product/group_buy_progress", userId);
+        List<GroupBuyProductVO> progressList = productService.getGroupBuyProgress(userId);
+
+        return Response.<List<GroupBuyProductVO>>builder()
+                .code("0000")
+                .info("Success")
+                .data(progressList)
+                .build();
     }
 
     @PostMapping("/list")

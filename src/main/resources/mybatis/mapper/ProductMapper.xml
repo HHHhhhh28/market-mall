@@ -15,6 +15,7 @@
         <result column="keywords" property="keywords" />
         <result column="create_time" property="createTime" />
         <result column="update_time" property="updateTime" />
+        <result column="user_tags" property="userTags" />
     </resultMap>
 
     <select id="selectByProductId" resultMap="BaseResultMap">
@@ -36,5 +37,19 @@
     <select id="selectAll" resultMap="BaseResultMap">
         SELECT * FROM product_info
     </select>
+
+    <update id="updateUserTagsByProductId">
+        UPDATE product_info
+        SET user_tags = #{userTags}, update_time = NOW()
+        WHERE product_id = #{productId}
+    </update>
+
+    <update id="updateStockReduce">
+        UPDATE product_info
+        SET stock = stock - #{reduceNum},
+            update_time = NOW()
+        WHERE product_id = #{productId}
+          AND stock >= #{reduceNum}
+    </update>
 
 </mapper>
