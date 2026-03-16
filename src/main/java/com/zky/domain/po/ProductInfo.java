@@ -23,6 +23,7 @@ public class ProductInfo {
     private String category;
     private String brand;
     private String keywords;
+    private Integer status;
     private Date createTime;
     private Date updateTime;
     private String userTags;

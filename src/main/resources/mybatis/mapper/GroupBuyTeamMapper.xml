@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zky.dao.GroupBuyTeamDao">
+
+    <resultMap id="BaseResultMap" type="com.zky.domain.po.GroupBuyTeam">
+        <id column="id" property="id"/>
+        <result column="team_id" property="teamId"/>
+        <result column="activity_id" property="activityId"/>
+        <result column="product_id" property="productId"/>
+        <result column="leader_user_id" property="leaderUserId"/>
+        <result column="required_people" property="requiredPeople"/>
+        <result column="current_people" property="currentPeople"/>
+        <result column="status" property="status"/>
+        <result column="group_buy_price" property="groupBuyPrice"/>
+        <result column="start_time" property="startTime"/>
+        <result column="end_time" property="endTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 根据团队ID查询 -->
+    <select id="selectByTeamId" resultMap="BaseResultMap">
+        SELECT * FROM group_buy_team WHERE team_id = #{teamId}
+    </select>
+
+    <!-- 查询活动下可加入的团队（拼团中 且 未满员 且 未超时 且 当前用户未参与） -->
+    <select id="selectJoinableTeams" resultMap="BaseResultMap">
+        SELECT t.* FROM group_buy_team t
+        WHERE t.activity_id = #{activityId}
+          AND t.status = 0
+          AND t.current_people &lt; t.required_people
+          AND t.end_time &gt; NOW()
+          AND NOT EXISTS (
+              SELECT 1 FROM group_buy_team_member m
+              WHERE m.team_id = t.team_id
+                AND m.user_id = #{userId}
+          )
+        ORDER BY t.current_people DESC, t.create_time ASC
+    </select>
+
+    <!-- 插入新团队 -->
+    <insert id="insert" parameterType="com.zky.domain.po.GroupBuyTeam">
+        INSERT INTO group_buy_team
+            (team_id, activity_id, product_id, leader_user_id, required_people,
+             current_people, status, group_buy_price, start_time, end_time, create_time, update_time)
+        VALUES
+            (#{teamId}, #{activityId}, #{productId}, #{leaderUserId}, #{requiredPeople},
+             #{currentPeople}, #{status}, #{groupBuyPrice}, #{startTime}, #{endTime}, NOW(), NOW())
+    </insert>
+
+    <!-- 人数 +1 -->
+    <update id="incrementCurrentPeople">
+        UPDATE group_buy_team
+        SET current_people = current_people + 1,
+            update_time    = NOW()
+        WHERE team_id = #{teamId}
+    </update>
+
+    <!-- 更新团队状态 -->
+    <update id="updateStatus">
+        UPDATE group_buy_team
+        SET status      = #{status},
+            update_time = NOW()
+        WHERE team_id = #{teamId}
+    </update>
+
+    <!-- 批量将超时未成团的团队状态更新为失败（2） -->
+    <update id="updateExpiredTeamsToFailed">
+        UPDATE group_buy_team
+        SET status      = 2,
+            update_time = NOW()
+        WHERE status = 0
+          AND end_time &lt; NOW()
+    </update>
+
+</mapper>

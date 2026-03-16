@@ -13,6 +13,7 @@
         <result column="category" property="category" />
         <result column="brand" property="brand" />
         <result column="keywords" property="keywords" />
+        <result column="status" property="status" />
         <result column="create_time" property="createTime" />
         <result column="update_time" property="updateTime" />
         <result column="user_tags" property="userTags" />
@@ -51,5 +52,52 @@
         WHERE product_id = #{productId}
           AND stock >= #{reduceNum}
     </update>
+
+    <insert id="insert" parameterType="com.zky.domain.po.ProductInfo">
+        INSERT INTO product_info (product_id, name, description, price, stock, image_url, category, brand, keywords, user_tags, status, create_time, update_time)
+        VALUES (#{productId}, #{name}, #{description}, #{price}, #{stock}, #{imageUrl}, #{category}, #{brand}, #{keywords}, #{userTags}, #{status}, NOW(), NOW())
+    </insert>
+
+    <update id="update" parameterType="com.zky.domain.po.ProductInfo">
+        UPDATE product_info
+        SET name = #{name},
+            description = #{description},
+            price = #{price},
+            stock = #{stock},
+            image_url = #{imageUrl},
+            category = #{category},
+            brand = #{brand},
+            keywords = #{keywords},
+            user_tags = #{userTags},
+            status = #{status},
+            update_time = NOW()
+        WHERE product_id = #{productId}
+    </update>
+
+    <delete id="deleteByProductId">
+        DELETE FROM product_info WHERE product_id = #{productId}
+    </delete>
+
+    <select id="selectTotalProductCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM product_info WHERE status = 1
+    </select>
+
+    <select id="selectTopProducts" resultType="java.util.Map">
+        SELECT p.name as productName, SUM(oi.quantity) as sales 
+        FROM order_item oi 
+        INNER JOIN product_info p ON oi.product_id = p.product_id 
+        INNER JOIN order_info o ON oi.order_id = o.order_id 
+        WHERE o.status != 4
+        GROUP BY oi.product_id, p.name 
+        ORDER BY sales DESC 
+        LIMIT 10
+    </select>
+
+    <select id="selectLowStockProducts" resultType="java.util.Map">
+        SELECT product_id, name, stock, category, price 
+        FROM product_info 
+        WHERE stock &lt; #{threshold} AND status = 1
+        ORDER BY stock ASC
+    </select>
 
 </mapper>

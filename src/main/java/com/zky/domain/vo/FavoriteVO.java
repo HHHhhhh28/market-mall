@@ -10,4 +10,5 @@ public class FavoriteVO {
     private String productName;
     private String productImage;
     private BigDecimal price;
+    private String category;
 }

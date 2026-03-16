@@ -9,11 +9,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 
 import com.zky.algorithm.RecommendationStrategy;
-import com.zky.api.IMarketIndexService;
-import com.zky.api.dto.GoodsMarketRequestDTO;
-import com.zky.api.dto.GoodsMarketResponseDTO;
-import com.zky.api.dto.ProductInfoDTO;
-import com.zky.api.response.Response;
+import com.zky.dao.GroupBuyActivityDao;
+import com.zky.domain.po.GroupBuyActivity;
 import com.zky.common.enums.RecommendationType;
 import com.zky.common.constans.Constants;
 import com.zky.dao.OrderDao;
@@ -58,8 +55,8 @@ public class ProductServiceImpl implements IProductService {
     @Resource
     private IRedisService redisService;
 
-    @DubboReference(interfaceClass = IMarketIndexService.class, version = "1.0")
-    private IMarketIndexService iMarketIndexService;
+    @Resource
+    private GroupBuyActivityDao groupBuyActivityDao;
 
     @Override
     public ProductDetailVO getProductDetail(String productId) {
@@ -149,11 +146,11 @@ public class ProductServiceImpl implements IProductService {
         return progressList;
     }
 
+    /**
+     * 根据单个商品查询本地拼团活动信息并组装GroupBuyProductVO（替代原Dubbo调用）
+     */
     private GroupBuyProductVO handleGroupBuyDubboV2(ProductInfo productInfo, String userId) {
-        // 初始化返回对象，避免返回null
         GroupBuyProductVO groupBuyVO = new GroupBuyProductVO();
-
-        // 1. 空值校验：如果商品信息为空，直接返回空的VO
         if (productInfo == null) {
             log.warn("处理单个拼团商品失败：商品信息为空");
             return groupBuyVO;
@@ -162,65 +159,19 @@ public class ProductServiceImpl implements IProductService {
             log.warn("处理单个拼团商品失败：商品ID为空");
             return groupBuyVO;
         }
-
-        try {
-            // 2. 构建Dubbo入参（适配单个商品接口）
-            GoodsMarketRequestDTO dubboRequest = new GoodsMarketRequestDTO();
-            dubboRequest.setUserId(userId);
-            dubboRequest.setSource("s01");
-            dubboRequest.setChannel("c01");
-            // 单个商品接口不使用goodsId和productList，置为null
-            dubboRequest.setGoodsId(null);
-            dubboRequest.setProductList(null);
-
-            // 构建单个商品的ProductInfoDTO（核心：赋值给productInfoDTO字段）
-            ProductInfoDTO productInfoDTO = new ProductInfoDTO();
-            productInfoDTO.setProductId(productInfo.getProductId());
-            productInfoDTO.setName(productInfo.getName()); // 注意字段匹配，若为productName需修改
-            productInfoDTO.setPrice(productInfo.getPrice());
-            dubboRequest.setProductInfoDTO(productInfoDTO);
-
-            // 3. 调用单个商品的Dubbo接口（注意：接口名改为单个商品的方法名）
-            Response<GoodsMarketResponseDTO> dubboResponse = iMarketIndexService.queryGroupBuyMarketTrialSingle(dubboRequest);
-
-            // 4. 复制ProductInfo基础属性到VO
-            BeanUtils.copyProperties(productInfo, groupBuyVO);
-
-            // 5. 解析Dubbo响应，补充拼团专属属性
-            if (dubboResponse != null && dubboResponse.getData() != null) {
-                GoodsMarketResponseDTO dubboDTO = dubboResponse.getData();
-
-                // 商品价格相关
-                if (dubboDTO.getGoods() != null) {
-                    groupBuyVO.setPayPrice(dubboDTO.getGoods().getPayPrice()); // 拼团支付价
-                }
-                // 活动ID
-                groupBuyVO.setActivityId(dubboDTO.getActivityId());
-                // 组队信息
-                GoodsMarketResponseDTO.Team team = dubboDTO.getTeam();
-                if (team != null) {
-                    groupBuyVO.setUserId(team.getUserId());
-                    groupBuyVO.setTeamId(team.getTeamId());
-                    groupBuyVO.setTargetCount(team.getTargetCount());
-                    groupBuyVO.setCompleteCount(team.getCompleteCount());
-                    groupBuyVO.setLockCount(team.getLockCount());
-                    groupBuyVO.setValidStartTime(team.getValidStartTime());
-                    groupBuyVO.setValidEndTime(team.getValidEndTime());
-                    groupBuyVO.setValidTimeCountdown(team.getValidTimeCountdown());
-                    groupBuyVO.setActivityStartTime(team.getActivityStartTime());
-                    groupBuyVO.setActivityEndTime(team.getActivityEndTime());
-                    groupBuyVO.setOutTradeNo(team.getOutTradeNo());
-                }
-            } else {
-                // Dubbo响应异常/无数据，打印日志
-                log.warn("单个拼团商品Dubbo接口响应异常：productId={}, response={}",
-                        productInfo.getProductId(), dubboResponse);
-            }
-        } catch (Exception e) {
-            // 异常捕获，避免单个商品处理失败导致整体报错
-            log.error("处理单个拼团商品异常：productId={}", productInfo.getProductId(), e);
+        // 复制商品基础属性
+        BeanUtils.copyProperties(productInfo, groupBuyVO);
+        // 查询该商品当前进行中的拼团活动
+        GroupBuyActivity activity = groupBuyActivityDao.selectActiveByProductId(productInfo.getProductId());
+        if (activity != null) {
+            groupBuyVO.setPayPrice(activity.getGroupBuyPrice());
+            groupBuyVO.setActivityId(activity.getActivityId());
+            groupBuyVO.setTargetCount(activity.getRequiredPeople());
+            groupBuyVO.setActivityStartTime(activity.getStartTime());
+            groupBuyVO.setActivityEndTime(activity.getEndTime());
+        } else {
+            log.info("商品{}暂无进行中的拼团活动", productInfo.getProductId());
         }
-
         return groupBuyVO;
     }
 
@@ -246,6 +197,10 @@ public class ProductServiceImpl implements IProductService {
         vo.setImageUrl(entity.getImageUrl());
         vo.setDescription(entity.getDescription());
         vo.setCategory(entity.getCategory());
+        vo.setStock(entity.getStock());
+        vo.setBrand(entity.getBrand());
+        vo.setKeywords(entity.getKeywords());
+        vo.setUserTags(entity.getUserTags());
         vo.setType("NORMAL");
         return vo;
     }

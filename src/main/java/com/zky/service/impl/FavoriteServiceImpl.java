@@ -53,6 +53,7 @@ public class FavoriteServiceImpl implements IFavoriteService {
                 vo.setProductName(p.getName());
                 vo.setProductImage(p.getImageUrl());
                 vo.setPrice(p.getPrice());
+                vo.setCategory(p.getCategory());
             }
             return vo;
         }).collect(Collectors.toList());

@@ -11,7 +11,7 @@
  Target Server Version : 80032 (8.0.32)
  File Encoding         : 65001
 
- Date: 22/02/2026 22:37:11
+ Date: 23/02/2026 23:26:13
 */
 
 SET NAMES utf8mb4;
@@ -32,7 +32,7 @@ CREATE TABLE `cart_info` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_cart_id` (`cart_id`),
   KEY `idx_user_id` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=48 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='购物车表';
+) ENGINE=InnoDB AUTO_INCREMENT=52 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='购物车表';
 
 -- ----------------------------
 -- Table structure for coupon
@@ -48,7 +48,7 @@ CREATE TABLE `coupon` (
   `status` tinyint DEFAULT '1' COMMENT '1可用 0禁用',
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_coupon_id` (`coupon_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='品类优惠券池';
+) ENGINE=InnoDB AUTO_INCREMENT=193 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='品类优惠券池';
 
 -- ----------------------------
 -- Table structure for favorite_info
@@ -64,7 +64,7 @@ CREATE TABLE `favorite_info` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_favorite_id` (`favorite_id`),
   KEY `idx_user_id` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=22 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户收藏表';
+) ENGINE=InnoDB AUTO_INCREMENT=23 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户收藏表';
 
 -- ----------------------------
 -- Table structure for order_info
@@ -85,7 +85,7 @@ CREATE TABLE `order_info` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_order_id` (`order_id`),
   KEY `idx_user_id` (`user_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=52 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='订单信息表';
+) ENGINE=InnoDB AUTO_INCREMENT=55 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='订单信息表';
 
 -- ----------------------------
 -- Table structure for order_item
@@ -107,7 +107,7 @@ CREATE TABLE `order_item` (
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_item_id` (`item_id`),
   KEY `idx_order_id` (`order_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=56 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='订单明细表';
+) ENGINE=InnoDB AUTO_INCREMENT=60 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='订单明细表';
 
 -- ----------------------------
 -- Table structure for product_info
@@ -152,6 +152,23 @@ CREATE TABLE `shipping_address` (
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='收货地址表';
 
 -- ----------------------------
+-- Table structure for sys_admin
+-- ----------------------------
+DROP TABLE IF EXISTS `sys_admin`;
+CREATE TABLE `sys_admin` (
+  `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+  `admin_id` varchar(64) NOT NULL COMMENT '业务管理员ID',
+  `username` varchar(64) NOT NULL COMMENT '后台登录账号',
+  `password` varchar(128) NOT NULL COMMENT '加密后的密码',
+  `status` tinyint NOT NULL DEFAULT '1' COMMENT '状态：1-启用，0-禁用',
+  `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_admin_id` (`admin_id`),
+  UNIQUE KEY `uk_username` (`username`)
+) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='后台管理员表';
+
+-- ----------------------------
 -- Table structure for user_behavior
 -- ----------------------------
 DROP TABLE IF EXISTS `user_behavior`;
@@ -163,7 +180,7 @@ CREATE TABLE `user_behavior` (
   `create_time` datetime DEFAULT CURRENT_TIMESTAMP COMMENT '发生时间',
   PRIMARY KEY (`id`),
   KEY `idx_user_product` (`user_id`,`product_id`)
-) ENGINE=InnoDB AUTO_INCREMENT=217 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户行为流水表';
+) ENGINE=InnoDB AUTO_INCREMENT=227 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户行为流水表';
 
 -- ----------------------------
 -- Table structure for user_coupon
@@ -178,7 +195,7 @@ CREATE TABLE `user_coupon` (
   `create_time` datetime DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   KEY `idx_user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户优惠券';
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户优惠券';
 
 -- ----------------------------
 -- Table structure for user_info
@@ -213,6 +230,6 @@ CREATE TABLE `user_lottery` (
   `update_time` datetime DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户抽奖次数&签到';
+) ENGINE=InnoDB AUTO_INCREMENT=3 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='用户抽奖次数&签到';
 
 SET FOREIGN_KEY_CHECKS = 1;
