@@ -49,13 +49,29 @@
         SELECT * FROM order_info WHERE user_id = #{userId} ORDER BY create_time DESC
     </select>
 
+    <select id="selectTodayTotalAmount" resultType="java.lang.Double">
+        SELECT COALESCE(SUM(oi.total_price), 0) 
+        FROM order_item oi 
+        INNER JOIN order_info o ON oi.order_id = o.order_id 
+        WHERE DATE(o.create_time) = CURDATE() AND o.status != 4
+    </select>
+
+    <select id="selectTodayOrderCount" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT order_id) 
+        FROM order_info 
+        WHERE DATE(create_time) = CURDATE() AND status != 4
+    </select>
+
+    <select id="selectOrderTrend" resultType="java.util.Map">
+        SELECT DATE(create_time) as date, COUNT(DISTINCT order_id) as count 
+        FROM order_info 
+        WHERE create_time >= DATE_SUB(CURDATE(), INTERVAL 6 DAY) AND status != 4
+        GROUP BY DATE(create_time) 
+        ORDER BY date ASC
+    </select>
+
     <select id="selectProductIdsByUserId" resultType="java.lang.String">
-        SELECT
-            oi.product_id
-        FROM
-            order_info o
-                INNER JOIN
-            order_item oi ON o.order_id = oi.order_id and oi.product_type = 'GROUP_BUY'
+        SELECT oi.product_id FROM order_info o INNER JOIN order_item oi ON o.order_id = oi.order_id and oi.product_type = 'GROUP_BUY'
         WHERE
             o.user_id = #{userId}
         GROUP BY

@@ -32,6 +32,32 @@
         SELECT * FROM user_info
     </select>
 
+    <select id="selectList" resultMap="BaseResultMap">
+        SELECT * FROM user_info
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (username LIKE CONCAT('%', #{keyword}, '%') OR phone LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectTotalUserCount" resultType="java.lang.Integer">
+        SELECT COUNT(DISTINCT user_id) FROM user_info
+    </select>
+
+    <select id="selectTodayNewUserCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM user_info WHERE DATE(create_time) = CURDATE()
+    </select>
+
+    <select id="selectCityDistribution" resultType="java.util.Map">
+        SELECT city as city, COUNT(*) as count 
+        FROM user_info 
+        WHERE city IS NOT NULL AND city != '' 
+        GROUP BY city 
+        ORDER BY count DESC
+    </select>
+
     <update id="update" parameterType="com.zky.domain.po.UserInfo">
         UPDATE user_info
         SET username = #{username},
@@ -43,5 +69,9 @@
             update_time = NOW()
         WHERE user_id = #{userId}
     </update>
+
+    <delete id="deleteByUserId">
+        DELETE FROM user_info WHERE user_id = #{userId}
+    </delete>
 
 </mapper>

@@ -1,30 +1,27 @@
 package com.zky.service.impl;
 
-import com.github.pagehelper.Page;
+import com.github.pagehelper.PageInfo;
 import com.zky.algorithm.RecommendationStrategy;
-import com.zky.api.IMarketIndexService;
-import com.zky.api.dto.GoodsMarketRequestDTO;
-import com.zky.api.dto.GoodsMarketResponseDTO;
-import com.zky.api.dto.ProductInfoDTO;
-import com.zky.api.response.Response;
 import com.zky.common.enums.RecommendationType;
+import com.zky.dao.GroupBuyActivityDao;
 import com.zky.dao.ProductDao;
 import com.zky.dao.UserDao;
 import com.zky.domain.dto.RecommendationRequestDTO;
-import com.github.pagehelper.PageInfo;
+import com.zky.domain.po.GroupBuyActivity;
 import com.zky.domain.po.ProductInfo;
 import com.zky.domain.po.UserInfo;
 import com.zky.domain.vo.GroupBuyProductVO;
 import com.zky.domain.vo.HomeProductVO;
 import com.zky.service.IRecommendationService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
 import javax.annotation.Resource;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 @Slf4j
@@ -33,8 +30,8 @@ public class RecommendationServiceImpl implements IRecommendationService {
 
     private final Map<RecommendationType, RecommendationStrategy> strategyMap;
 
-    @DubboReference(interfaceClass = IMarketIndexService.class,version = "1.0")
-    private IMarketIndexService iMarketIndexService;
+    @Resource
+    private GroupBuyActivityDao groupBuyActivityDao;
 
     @Resource
     private UserDao userDao;
@@ -73,85 +70,31 @@ public class RecommendationServiceImpl implements IRecommendationService {
         return pageInfo;
     }
 
-    // ====================== 重构 Dubbo 调用逻辑（直接返回 GroupBuyProductVO） ======================
+    // ====================== 本地拼团活动数据查询（替代原Dubbo调用） ======================
     /**
-     * 拼团商品专属：调用Dubbo接口并直接转换为 GroupBuyProductVO
+     * 根据推荐商品列表，查询本地拼团活动信息并组装GroupBuyProductVO
      */
     private List<GroupBuyProductVO> handleGroupBuyDubboV2(List<ProductInfo> recommendedEntities, String userId) {
         List<GroupBuyProductVO> groupBuyVOList = new ArrayList<>();
         if (CollectionUtils.isEmpty(recommendedEntities)) {
             return groupBuyVOList;
         }
-
-        // 1. 构建Dubbo入参
-        GoodsMarketRequestDTO dubboRequest = new GoodsMarketRequestDTO();
-        dubboRequest.setUserId(userId);
-        dubboRequest.setSource("group_buy_market");
-        dubboRequest.setChannel("recommend");
-        dubboRequest.setGoodsId(null);
-
-        List<ProductInfoDTO> productInfoDTOList = recommendedEntities.stream()
-                .map(productInfo -> {
-                    ProductInfoDTO dto = new ProductInfoDTO();
-                    dto.setProductId(productInfo.getProductId());
-                    dto.setName(productInfo.getName()); // 注意：ProductInfo的name字段需和DTO匹配，若为productName需修改
-                    dto.setPrice(productInfo.getPrice());
-                    return dto;
-                })
-                .collect(Collectors.toList());
-        dubboRequest.setProductList(productInfoDTOList);
-
-        // 2. 调用Dubbo接口
-        Response<List<GoodsMarketResponseDTO>> dubboResponse = iMarketIndexService.queryGroupBuyMarketTrial(dubboRequest);
-
-        // 3. 解析Dubbo响应，构建商品ID映射（核心修复：声明为final）
-        final Map<String, GoodsMarketResponseDTO> productDubboMap = new HashMap<>(); // 关键：加final
-        if (dubboResponse != null && dubboResponse.getData() != null) {
-            // 仅向map中put数据，不重新赋值map本身
-            dubboResponse.getData().stream()
-                    .filter(dto -> dto.getGoods() != null)
-                    .forEach(dto -> productDubboMap.put(
-                            dto.getGoods().getGoodsId(),
-                            dto
-                    ));
-            // 替代原Collectors.toMap，避免重新赋值map，彻底解决effectively final问题
+        for (ProductInfo productInfo : recommendedEntities) {
+            GroupBuyProductVO vo = new GroupBuyProductVO();
+            // 复制商品基础属性
+            BeanUtils.copyProperties(productInfo, vo);
+            // 查询该商品当前进行中的拼团活动
+            GroupBuyActivity activity = groupBuyActivityDao.selectActiveByProductId(productInfo.getProductId());
+            if (activity != null) {
+                // 补充拼团专属字段
+                vo.setPayPrice(activity.getGroupBuyPrice());
+                vo.setActivityId(activity.getActivityId());
+                vo.setTargetCount(activity.getRequiredPeople());
+                vo.setActivityStartTime(activity.getStartTime());
+                vo.setActivityEndTime(activity.getEndTime());
+            }
+            groupBuyVOList.add(vo);
         }
-
-        // 4. ProductInfo + Dubbo数据 → GroupBuyProductVO
-        groupBuyVOList = recommendedEntities.stream()
-                .map(productInfo -> {
-                    GroupBuyProductVO vo = new GroupBuyProductVO();
-                    // 4.1 复制ProductInfo基础属性
-                    BeanUtils.copyProperties(productInfo, vo);
-                    // 4.2 补充Dubbo返回的拼团专属属性
-                    GoodsMarketResponseDTO dubboDTO = productDubboMap.get(productInfo.getProductId()); // 现在无爆红
-                    if (dubboDTO != null) {
-                        // 商品价格相关
-                        if (dubboDTO.getGoods() != null) {
-                            vo.setPayPrice(dubboDTO.getGoods().getPayPrice()); // 拼团支付价
-                        }
-                        // 活动ID
-                        vo.setActivityId(dubboDTO.getActivityId());
-                        // 组队信息（取单商品组队信息）
-                        GoodsMarketResponseDTO.Team team = dubboDTO.getTeam();
-                        if (team != null) {
-                            vo.setUserId(team.getUserId());
-                            vo.setTeamId(team.getTeamId());
-                            vo.setTargetCount(team.getTargetCount());
-                            vo.setCompleteCount(team.getCompleteCount());
-                            vo.setLockCount(team.getLockCount());
-                            vo.setValidStartTime(team.getValidStartTime());
-                            vo.setValidEndTime(team.getValidEndTime());
-                            vo.setValidTimeCountdown(team.getValidTimeCountdown());
-                            vo.setActivityStartTime(team.getActivityStartTime());
-                            vo.setActivityEndTime(team.getActivityEndTime());
-                            vo.setOutTradeNo(team.getOutTradeNo());
-                        }
-                    }
-                    return vo;
-                })
-                .collect(Collectors.toList());
-
         return groupBuyVOList;
     }
 

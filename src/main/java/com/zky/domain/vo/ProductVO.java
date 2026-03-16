@@ -18,5 +18,9 @@ public class ProductVO {
     private Long activityId;
     private String description;
     private String category;
+    private Integer stock;
+    private String brand;
+    private String keywords;
+    private String userTags;
     private String type; // "NORMAL", "GROUP_BUY", "AWARD"
 }

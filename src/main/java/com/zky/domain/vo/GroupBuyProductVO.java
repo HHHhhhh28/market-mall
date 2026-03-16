@@ -34,8 +34,8 @@ public class GroupBuyProductVO {
     private String userId;
     // 拼单组队ID
     private String teamId;
-    // 活动ID
-    private Long activityId;
+    // 活动ID（本地拼团模块使用字符串UUID）
+    private String activityId;
     // 目标数量
     private Integer targetCount;
     // 完成数量
