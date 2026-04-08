@@ -26,5 +26,17 @@ public interface CouponDao {
      * 查询多品类下可用优惠券
      */
     List<Coupon> selectAvailableByCategories(@Param("categories") List<String> categories);
+
+    /** 查询全部（管理用） */
+    List<Coupon> selectAllForAdmin();
+
+    /** 新增 */
+    int insert(Coupon coupon);
+
+    /** 更新 value/status */
+    int update(Coupon coupon);
+
+    /** 删除 */
+    int deleteByCouponId(@Param("couponId") String couponId);
 }
 

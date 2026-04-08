@@ -11,4 +11,6 @@ public class FavoriteVO {
     private String productImage;
     private BigDecimal price;
     private String category;
+    /** 该商品被收藏的总人数 */
+    private Integer favoriteCount;
 }

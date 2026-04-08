@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
 
 /**
  * 拼团活动展示VO（用于拼团列表/商品卡片）
@@ -46,4 +47,22 @@ public class GroupBuyActivityVO {
 
     /** 当前进行中的团队数量（可凑团） */
     private Integer openTeamCount;
+
+    /** 进行中的团队列表（含进度和倒计时，用于详情页展示） */
+    private List<OpenTeamInfo> openTeams;
+
+    /** 可加入的团队列表（排除用户已参团的，用于列表页展示） */
+    private List<OpenTeamInfo> joinableTeams;
+
+    /** 进行中团队简要信息内部类 */
+    @Data
+    public static class OpenTeamInfo {
+        private String teamId;
+        private Integer currentPeople;
+        private Integer requiredPeople;
+        private Long endTimeMs; // 毫秒时间戳，前端计算倒计时
+        private String leaderUserId;
+        private String leaderUsername; // 团长用户名
+        private Boolean isJoined; // 当前用户是否已参团
+    }
 }

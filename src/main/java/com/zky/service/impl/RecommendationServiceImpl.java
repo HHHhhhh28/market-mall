@@ -4,10 +4,12 @@ import com.github.pagehelper.PageInfo;
 import com.zky.algorithm.RecommendationStrategy;
 import com.zky.common.enums.RecommendationType;
 import com.zky.dao.GroupBuyActivityDao;
+import com.zky.dao.GroupBuyProductDao;
 import com.zky.dao.ProductDao;
 import com.zky.dao.UserDao;
 import com.zky.domain.dto.RecommendationRequestDTO;
 import com.zky.domain.po.GroupBuyActivity;
+import com.zky.domain.po.GroupBuyProduct;
 import com.zky.domain.po.ProductInfo;
 import com.zky.domain.po.UserInfo;
 import com.zky.domain.vo.GroupBuyProductVO;
@@ -32,6 +34,9 @@ public class RecommendationServiceImpl implements IRecommendationService {
 
     @Resource
     private GroupBuyActivityDao groupBuyActivityDao;
+
+    @Resource
+    private GroupBuyProductDao groupBuyProductDao;
 
     @Resource
     private UserDao userDao;
@@ -83,15 +88,17 @@ public class RecommendationServiceImpl implements IRecommendationService {
             GroupBuyProductVO vo = new GroupBuyProductVO();
             // 复制商品基础属性
             BeanUtils.copyProperties(productInfo, vo);
-            // 查询该商品当前进行中的拼团活动
-            GroupBuyActivity activity = groupBuyActivityDao.selectActiveByProductId(productInfo.getProductId());
-            if (activity != null) {
-                // 补充拼团专属字段
-                vo.setPayPrice(activity.getGroupBuyPrice());
-                vo.setActivityId(activity.getActivityId());
-                vo.setTargetCount(activity.getRequiredPeople());
-                vo.setActivityStartTime(activity.getStartTime());
-                vo.setActivityEndTime(activity.getEndTime());
+            // 查询该商品当前已上架的拼团策略记录
+            GroupBuyProduct gbp = groupBuyProductDao.selectLatestByProductId(productInfo.getProductId());
+            if (gbp != null && gbp.getStatus() == 1) {
+                vo.setPayPrice(gbp.getGroupBuyPrice());
+                vo.setActivityId(gbp.getActivityId());
+                GroupBuyActivity activity = groupBuyActivityDao.selectByActivityId(gbp.getActivityId());
+                if (activity != null) {
+                    vo.setTargetCount(activity.getRequiredPeople());
+                    vo.setActivityStartTime(activity.getStartTime());
+                    vo.setActivityEndTime(activity.getEndTime());
+                }
             }
             groupBuyVOList.add(vo);
         }

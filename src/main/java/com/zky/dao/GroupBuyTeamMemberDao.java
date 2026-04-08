@@ -35,4 +35,7 @@ public interface GroupBuyTeamMemberDao {
     int updateStatusByTeamId(
             @Param("teamId") String teamId,
             @Param("status") Integer status);
+
+    /** 将超时未成团的团队成员状态更新为失败 */
+    int updateStatusForExpiredTeams();
 }

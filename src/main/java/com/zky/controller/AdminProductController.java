@@ -140,36 +140,20 @@ public class AdminProductController {
         if (file == null || file.isEmpty()) {
             return Response.<String>builder().code("0001").info("文件不能为空").build();
         }
-        
         try {
-            String originalFilename = file.getOriginalFilename();
-            String extension = FilenameUtils.getExtension(originalFilename);
+            String extension = FilenameUtils.getExtension(file.getOriginalFilename());
             String newFileName = UUID.randomUUID().toString() + "." + extension;
-            
-            // 获取文件字节数组
-            byte[] fileBytes = file.getBytes();
-            
-            // 上传到后台项目的public/images
-            String backgroundUploadPath = "/Users/iniesta/study/idea_project/geraduation_design/market-mall-front-background/public/images";
-            File backgroundUploadDir = new File(backgroundUploadPath);
-            if (!backgroundUploadDir.exists()) {
-                backgroundUploadDir.mkdirs();
-            }
-            Path backgroundFilePath = Paths.get(backgroundUploadPath, newFileName);
-            Files.write(backgroundFilePath, fileBytes);
-            
-            // 上传到前台项目的public/images
-            String frontUploadPath = "/Users/iniesta/study/idea_project/geraduation_design/market-mall-front/public/images";
-            File frontUploadDir = new File(frontUploadPath);
-            if (!frontUploadDir.exists()) {
-                frontUploadDir.mkdirs();
-            }
-            Path frontFilePath = Paths.get(frontUploadPath, newFileName);
-            Files.write(frontFilePath, fileBytes);
-            
-            log.info("文件上传成功: {}, {}", backgroundFilePath.toString(), frontFilePath.toString());
-            
-            String imageUrl = "/images/" + newFileName;
+
+            // 统一存到 market-mall-front/public/images
+            // 后端通过静态资源映射提供 http://localhost:8099/images/xxx 访问
+            // 前台 Vite dev server 也可通过 /images/xxx 访问同一文件
+            String storePath = com.zky.config.WebConfig.IMAGE_STORE_PATH;
+            File storeDir = new File(storePath);
+            if (!storeDir.exists()) storeDir.mkdirs();
+            Files.write(Paths.get(storePath, newFileName), file.getBytes());
+
+            String imageUrl = com.zky.config.WebConfig.IMAGE_URL_PREFIX + newFileName;
+            log.info("文件上传成功: {}", imageUrl);
             return Response.<String>builder().code("0000").info("Success").data(imageUrl).build();
         } catch (IOException e) {
             log.error("文件上传失败", e);

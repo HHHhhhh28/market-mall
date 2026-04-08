@@ -69,4 +69,13 @@
         WHERE team_id = #{teamId}
     </update>
 
+    <!-- 将超时未成团的团队成员状态更新为失败 -->
+    <update id="updateStatusForExpiredTeams">
+        UPDATE group_buy_team_member m
+        INNER JOIN group_buy_team t ON m.team_id = t.team_id
+        SET m.status = 2, m.update_time = NOW()
+        WHERE t.status = 2
+          AND m.status = 0
+    </update>
+
 </mapper>

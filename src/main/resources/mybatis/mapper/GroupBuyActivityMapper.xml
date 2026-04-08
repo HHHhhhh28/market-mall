@@ -5,10 +5,6 @@
     <resultMap id="BaseResultMap" type="com.zky.domain.po.GroupBuyActivity">
         <id column="id" property="id"/>
         <result column="activity_id" property="activityId"/>
-        <result column="product_id" property="productId"/>
-        <result column="activity_name" property="activityName"/>
-        <result column="group_buy_price" property="groupBuyPrice"/>
-        <result column="original_price" property="originalPrice"/>
         <result column="required_people" property="requiredPeople"/>
         <result column="valid_duration" property="validDuration"/>
         <result column="status" property="status"/>
@@ -23,17 +19,6 @@
         SELECT * FROM group_buy_activity WHERE activity_id = #{activityId}
     </select>
 
-    <!-- 查询商品当前进行中的活动 -->
-    <select id="selectActiveByProductId" resultMap="BaseResultMap">
-        SELECT * FROM group_buy_activity
-        WHERE product_id = #{productId}
-          AND status = 1
-          AND start_time &lt;= NOW()
-          AND end_time &gt;= NOW()
-        ORDER BY create_time DESC
-        LIMIT 1
-    </select>
-
     <!-- 查询所有进行中的活动列表 -->
     <select id="selectActiveList" resultMap="BaseResultMap">
         SELECT * FROM group_buy_activity
@@ -46,19 +31,15 @@
     <!-- 插入活动 -->
     <insert id="insert" parameterType="com.zky.domain.po.GroupBuyActivity">
         INSERT INTO group_buy_activity
-            (activity_id, product_id, activity_name, group_buy_price, original_price,
-             required_people, valid_duration, status, start_time, end_time, create_time, update_time)
+            (activity_id, required_people, valid_duration, status, start_time, end_time, create_time, update_time)
         VALUES
-            (#{activityId}, #{productId}, #{activityName}, #{groupBuyPrice}, #{originalPrice},
-             #{requiredPeople}, #{validDuration}, #{status}, #{startTime}, #{endTime}, NOW(), NOW())
+            (#{activityId}, #{requiredPeople}, #{validDuration}, #{status}, #{startTime}, #{endTime}, NOW(), NOW())
     </insert>
 
     <!-- 更新活动 -->
     <update id="update" parameterType="com.zky.domain.po.GroupBuyActivity">
         UPDATE group_buy_activity
-        SET activity_name  = #{activityName},
-            group_buy_price = #{groupBuyPrice},
-            required_people = #{requiredPeople},
+        SET required_people = #{requiredPeople},
             valid_duration  = #{validDuration},
             status          = #{status},
             start_time      = #{startTime},

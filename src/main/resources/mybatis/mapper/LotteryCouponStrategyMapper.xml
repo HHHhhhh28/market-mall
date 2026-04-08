@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zky.dao.LotteryCouponStrategyDao">
+
+    <resultMap id="BaseResultMap" type="com.zky.domain.po.LotteryCouponStrategy">
+        <id column="id" property="id"/>
+        <result column="strategy_id" property="strategyId"/>
+        <result column="coupon_id" property="couponId"/>
+        <result column="category" property="category"/>
+        <result column="coupon_type" property="couponType"/>
+        <result column="coupon_value" property="couponValue"/>
+        <result column="min_order_amount" property="minOrderAmount"/>
+        <result column="avg_order_price" property="avgOrderPrice"/>
+        <result column="category_margin" property="categoryMargin"/>
+        <result column="order_count_30d" property="orderCount30d"/>
+        <result column="user_count_30d" property="userCount30d"/>
+        <result column="repeat_buy_rate" property="repeatBuyRate"/>
+        <result column="elasticity_score" property="elasticityScore"/>
+        <result column="conversion_lift" property="conversionLift"/>
+        <result column="volume_lift" property="volumeLift"/>
+        <result column="actual_discount" property="actualDiscount"/>
+        <result column="net_profit_rate" property="netProfitRate"/>
+        <result column="roi_score" property="roiScore"/>
+        <result column="break_even_discount" property="breakEvenDiscount"/>
+        <result column="recommend_reason" property="recommendReason"/>
+        <result column="status" property="status"/>
+        <result column="is_fallback" property="isFallback"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <select id="selectByCouponId" resultMap="BaseResultMap">
+        SELECT * FROM lottery_coupon_strategy WHERE coupon_id = #{couponId}
+    </select>
+
+    <select id="selectAll" resultMap="BaseResultMap">
+        SELECT * FROM lottery_coupon_strategy
+        ORDER BY
+            is_fallback ASC,
+            CASE WHEN status = 1 THEN 0 ELSE 1 END ASC,
+            CASE WHEN status = 1 THEN update_time END DESC,
+            category ASC,
+            coupon_type ASC
+    </select>
+
+    <select id="selectOnlineList" resultMap="BaseResultMap">
+        SELECT * FROM lottery_coupon_strategy WHERE status = 1 ORDER BY is_fallback ASC, roi_score DESC
+    </select>
+
+    <select id="selectFallbackList" resultMap="BaseResultMap">
+        SELECT * FROM lottery_coupon_strategy WHERE is_fallback = 1 AND status = 1
+    </select>
+
+    <select id="selectOnlineByCategories" resultMap="BaseResultMap">
+        SELECT * FROM lottery_coupon_strategy
+        WHERE status = 1 AND is_fallback = 0
+        AND category IN
+        <foreach item="cat" collection="categories" open="(" separator="," close=")">
+            #{cat}
+        </foreach>
+        ORDER BY roi_score DESC
+    </select>
+
+    <insert id="insert" parameterType="com.zky.domain.po.LotteryCouponStrategy">
+        INSERT INTO lottery_coupon_strategy
+        (strategy_id, coupon_id, category, coupon_type, coupon_value, min_order_amount,
+         avg_order_price, category_margin, order_count_30d, user_count_30d, repeat_buy_rate,
+         elasticity_score, conversion_lift, volume_lift, actual_discount, net_profit_rate,
+         roi_score, break_even_discount, recommend_reason, status, is_fallback)
+        VALUES
+        (#{strategyId}, #{couponId}, #{category}, #{couponType}, #{couponValue}, #{minOrderAmount},
+         #{avgOrderPrice}, #{categoryMargin}, #{orderCount30d}, #{userCount30d}, #{repeatBuyRate},
+         #{elasticityScore}, #{conversionLift}, #{volumeLift}, #{actualDiscount}, #{netProfitRate},
+         #{roiScore}, #{breakEvenDiscount}, #{recommendReason}, #{status}, #{isFallback})
+    </insert>
+
+    <update id="update" parameterType="com.zky.domain.po.LotteryCouponStrategy">
+        UPDATE lottery_coupon_strategy
+        SET avg_order_price = #{avgOrderPrice},
+            order_count_30d = #{orderCount30d},
+            user_count_30d  = #{userCount30d},
+            repeat_buy_rate = #{repeatBuyRate},
+            elasticity_score = #{elasticityScore},
+            conversion_lift  = #{conversionLift},
+            volume_lift      = #{volumeLift},
+            actual_discount  = #{actualDiscount},
+            net_profit_rate  = #{netProfitRate},
+            roi_score        = #{roiScore},
+            break_even_discount = #{breakEvenDiscount},
+            recommend_reason = #{recommendReason},
+            update_time      = NOW()
+        WHERE coupon_id = #{couponId}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE lottery_coupon_strategy
+        SET status = #{status}, update_time = NOW()
+        WHERE coupon_id = #{couponId}
+    </update>
+
+
+    <delete id="deleteByCouponId">
+        DELETE FROM lottery_coupon_strategy WHERE coupon_id = #{couponId}
+    </delete>
+
+</mapper>

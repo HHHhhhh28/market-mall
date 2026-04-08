@@ -27,13 +27,16 @@ public class GroupBuyController {
 
     /**
      * 获取所有进行中的拼团活动列表（拼团推荐页）
+     * 如果提供 userId，则只返回该用户感兴趣的商品
      */
     @GetMapping("/activities")
     public Response<PageInfo<GroupBuyActivityVO>> getActiveGroupBuyList(
             @RequestParam(value = "pageNum", defaultValue = "1") int pageNum,
-            @RequestParam(value = "pageSize", defaultValue = "9") int pageSize) {
-        log.info("接口 {} 被调用了", "/api/v1/mall/group-buy/activities");
-        PageInfo<GroupBuyActivityVO> result = groupBuyService.getActiveGroupBuyList(pageNum, pageSize);
+            @RequestParam(value = "pageSize", defaultValue = "9") int pageSize,
+            @RequestParam(value = "userId", required = false) String userId) {
+        log.info("接口 {} 被调用了，userId={}", "/api/v1/mall/group-buy/activities", userId);
+        PageInfo<GroupBuyActivityVO> result = ((com.zky.service.impl.GroupBuyServiceImpl) groupBuyService)
+                .getActiveGroupBuyListForUser(pageNum, pageSize, userId);
         return Response.<PageInfo<GroupBuyActivityVO>>builder()
                 .code("0000").info("Success").data(result).build();
     }
@@ -41,12 +44,12 @@ public class GroupBuyController {
     /**
      * 获取拼团活动详情（含可加入团队数量）
      */
-    @GetMapping("/activity/{activityId}")
+    @GetMapping("/activity/{productId}")
     public Response<GroupBuyActivityVO> getActivityDetail(
-            @PathVariable String activityId,
+            @PathVariable String productId,
             @RequestParam(value = "userId", required = false, defaultValue = "") String userId) {
-        log.info("接口 {} 被调用了", "/api/v1/mall/group-buy/activity/" + activityId);
-        GroupBuyActivityVO result = groupBuyService.getActivityDetail(activityId, userId);
+        log.info("接口 {} 被调用了", "/api/v1/mall/group-buy/activity/" + productId);
+        GroupBuyActivityVO result = groupBuyService.getActivityDetail(productId, userId);
         return Response.<GroupBuyActivityVO>builder()
                 .code("0000").info("Success").data(result).build();
     }

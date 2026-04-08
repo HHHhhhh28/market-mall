@@ -27,14 +27,37 @@
     </select>
 
     <select id="selectAvailableByCategories" resultMap="BaseResultMap">
-        SELECT *
-        FROM coupon
-        WHERE category IN
-        <foreach collection="categories" item="category" open="(" separator="," close=")">
-            #{category}
-        </foreach>
-          AND status = 1
+        SELECT * FROM coupon
+        <where>
+            status = 1
+            <if test="categories != null and categories.size() > 0">
+                AND category IN
+                <foreach collection="categories" item="category" open="(" separator="," close=")">
+                    #{category}
+                </foreach>
+            </if>
+        </where>
+        ORDER BY category, coupon_type
     </select>
+
+    <select id="selectAllForAdmin" resultMap="BaseResultMap">
+        SELECT * FROM coupon ORDER BY category, coupon_type
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO coupon (coupon_id, category, coupon_type, value, name, status)
+        VALUES (#{couponId}, #{category}, #{couponType}, #{value}, #{name}, #{status})
+    </insert>
+
+    <update id="update">
+        UPDATE coupon
+        SET value = #{value}, status = #{status}
+        WHERE coupon_id = #{couponId}
+    </update>
+
+    <delete id="deleteByCouponId">
+        DELETE FROM coupon WHERE coupon_id = #{couponId}
+    </delete>
 
 </mapper>
 

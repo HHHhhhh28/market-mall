@@ -11,4 +11,9 @@ public interface FavoriteDao {
     int delete(@Param("userId") String userId, @Param("productId") String productId);
     FavoriteInfo selectOne(@Param("userId") String userId, @Param("productId") String productId);
     List<FavoriteInfo> selectByUserId(@Param("userId") String userId);
+    
+    /**
+     * 查询指定商品的收藏数
+     */
+    int countByProductId(@Param("productId") String productId);
 }

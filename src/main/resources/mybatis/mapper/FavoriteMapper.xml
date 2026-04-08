@@ -27,4 +27,8 @@
         SELECT * FROM favorite_info WHERE user_id = #{userId} ORDER BY create_time DESC
     </select>
 
+    <select id="countByProductId" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM favorite_info WHERE product_id = #{productId}
+    </select>
+
 </mapper>

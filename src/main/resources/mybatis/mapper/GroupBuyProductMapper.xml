@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zky.dao.GroupBuyProductDao">
+
+    <resultMap id="BaseResultMap" type="com.zky.domain.po.GroupBuyProduct">
+        <id column="id" property="id"/>
+        <result column="activity_id" property="activityId"/>
+        <result column="product_id" property="productId"/>
+        <result column="group_buy_price" property="groupBuyPrice"/>
+        <result column="original_price" property="originalPrice"/>
+        <result column="discount_rate" property="discountRate"/>
+        <result column="interested_users" property="interestedUsers"/>
+        <result column="target_user_tags" property="targetUserTags"/>
+        <result column="behavior_score" property="behaviorScore"/>
+        <result column="purchase_count" property="purchaseCount"/>
+        <result column="view_count" property="viewCount"/>
+        <result column="favorite_count" property="favoriteCount"/>
+        <result column="status" property="status"/>
+        <result column="online_time" property="onlineTime"/>
+        <result column="offline_time" property="offlineTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <!-- 根据活动ID和商品ID查询 -->
+    <select id="selectByActivityAndProduct" resultMap="BaseResultMap">
+        SELECT * FROM group_buy_product
+        WHERE activity_id = #{activityId} AND product_id = #{productId}
+        LIMIT 1
+    </select>
+
+    <!-- 根据商品ID查询最新策略记录 -->
+    <select id="selectLatestByProductId" resultMap="BaseResultMap">
+        SELECT * FROM group_buy_product
+        WHERE product_id = #{productId}
+        ORDER BY create_time DESC
+        LIMIT 1
+    </select>
+
+    <!-- 查询所有已上架的拼团商品 -->
+    <select id="selectOnlineList" resultMap="BaseResultMap">
+        SELECT * FROM group_buy_product
+        WHERE status = 1
+        ORDER BY create_time DESC
+    </select>
+
+    <!-- 查询指定活动下所有已上架商品 -->
+    <select id="selectOnlineByActivityId" resultMap="BaseResultMap">
+        SELECT * FROM group_buy_product
+        WHERE activity_id = #{activityId} AND status = 1
+        ORDER BY behavior_score DESC
+    </select>
+
+    <!-- 插入策略记录 -->
+    <insert id="insert" parameterType="com.zky.domain.po.GroupBuyProduct">
+        INSERT INTO group_buy_product
+            (activity_id, product_id, group_buy_price, original_price, discount_rate,
+             interested_users, target_user_tags, behavior_score,
+             purchase_count, view_count, favorite_count,
+             status, online_time, offline_time, create_time, update_time)
+        VALUES
+            (#{activityId}, #{productId}, #{groupBuyPrice}, #{originalPrice}, #{discountRate},
+             #{interestedUsers}, #{targetUserTags}, #{behaviorScore},
+             #{purchaseCount}, #{viewCount}, #{favoriteCount},
+             #{status}, #{onlineTime}, #{offlineTime}, NOW(), NOW())
+    </insert>
+
+    <!-- 更新策略记录 -->
+    <update id="update" parameterType="com.zky.domain.po.GroupBuyProduct">
+        UPDATE group_buy_product
+        SET group_buy_price  = #{groupBuyPrice},
+            discount_rate    = #{discountRate},
+            interested_users = #{interestedUsers},
+            target_user_tags = #{targetUserTags},
+            behavior_score   = #{behaviorScore},
+            purchase_count   = #{purchaseCount},
+            view_count       = #{viewCount},
+            favorite_count   = #{favoriteCount},
+            status           = #{status},
+            online_time      = #{onlineTime},
+            offline_time     = #{offlineTime},
+            update_time      = NOW()
+        WHERE activity_id = #{activityId} AND product_id = #{productId}
+    </update>
+
+    <!-- 更新上架状态 -->
+    <update id="updateStatus">
+        UPDATE group_buy_product
+        SET status      = #{status},
+            online_time  = CASE WHEN #{status} = 1 THEN NOW() ELSE online_time END,
+            offline_time = CASE WHEN #{status} = 2 THEN NOW() ELSE offline_time END,
+            update_time  = NOW()
+        WHERE activity_id = #{activityId} AND product_id = #{productId}
+    </update>
+
+    <!-- 批量下架已到期商品 -->
+    <update id="batchOfflineExpired">
+        UPDATE group_buy_product
+        SET status = 2, offline_time = NOW(), update_time = NOW()
+        WHERE status = 1
+          AND offline_time IS NOT NULL
+          AND offline_time &lt;= NOW()
+    </update>
+
+</mapper>

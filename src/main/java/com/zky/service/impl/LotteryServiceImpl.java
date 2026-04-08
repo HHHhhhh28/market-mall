@@ -6,6 +6,9 @@ import com.zky.dao.ProductDao;
 import com.zky.dao.UserCouponDao;
 import com.zky.dao.UserDao;
 import com.zky.dao.UserLotteryDao;
+import com.zky.dao.LotteryCouponStrategyDao;
+import com.zky.dao.UserBehaviorDao;
+import com.zky.domain.po.LotteryCouponStrategy;
 import com.zky.domain.po.Coupon;
 import com.zky.domain.po.ProductInfo;
 import com.zky.domain.po.UserCoupon;
@@ -15,6 +18,7 @@ import com.zky.domain.vo.LotteryDrawResultVO;
 import com.zky.domain.vo.LotteryGridItemVO;
 import com.zky.domain.vo.LotteryInfoVO;
 import com.zky.service.ILotteryService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 
@@ -24,6 +28,7 @@ import java.time.ZoneId;
 import java.util.*;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 public class LotteryServiceImpl implements ILotteryService {
 
@@ -39,6 +44,10 @@ public class LotteryServiceImpl implements ILotteryService {
     private CouponDao couponDao;
     @Resource
     private UserCouponDao userCouponDao;
+    @Resource
+    private LotteryCouponStrategyDao lotteryStrategyDao;
+    @Resource
+    private UserBehaviorDao userBehaviorDao;
 
     @Override
     public LotteryInfoVO getLotteryInfo(String userId) {
@@ -120,11 +129,97 @@ public class LotteryServiceImpl implements ILotteryService {
 
     @Override
     public List<LotteryGridItemVO> previewGrid(String userId) {
-        List<String> topCategories = getTopCategories(userId);
-        if (CollectionUtils.isEmpty(topCategories)) {
-            return Collections.emptyList();
+        // 1. 按用户行为加权获取兴趣品类（view=1, collect/cart=3, buy=5）
+        List<String> topCategories = getTopCategoriesByBehavior(userId);
+
+        // 2. 按品类顺序从已上架策略中取优惠券，取满6个为止
+        List<LotteryGridItemVO> couponItems = buildGridFromStrategy(topCategories);
+
+        // 3. 不足6个时用保底券补齐
+        if (couponItems.size() < 6) {
+            List<LotteryCouponStrategy> fallbacks = lotteryStrategyDao.selectFallbackList();
+            Collections.shuffle(fallbacks);
+            for (LotteryCouponStrategy fb : fallbacks) {
+                if (couponItems.size() >= 6) break;
+                // 避免重复
+                boolean dup = couponItems.stream().anyMatch(i -> fb.getCouponId().equals(i.getCouponId()));
+                if (!dup) {
+                    Coupon c = couponDao.selectByCouponId(fb.getCouponId());
+                    if (c != null) couponItems.add(toGridItem(c));
+                }
+            }
         }
-        return buildGridItems(topCategories);
+
+        // 4. 仍不足6个，直接从 coupon 表取通用保底券
+        if (couponItems.size() < 6) {
+            List<Coupon> generic = couponDao.selectAvailableByCategory("通用");
+            Collections.shuffle(generic);
+            for (Coupon c : generic) {
+                if (couponItems.size() >= 6) break;
+                boolean dup = couponItems.stream().anyMatch(i -> c.getCouponId().equals(i.getCouponId()));
+                if (!dup) couponItems.add(toGridItem(c));
+            }
+        }
+
+        // 5. 最终截断到6个
+        if (couponItems.size() > 6) couponItems = couponItems.subList(0, 6);
+
+        // 6. 组装固定3格 + 6个优惠券格 = 9格
+        List<LotteryGridItemVO> grid = new ArrayList<>();
+        LotteryGridItemVO thanks = new LotteryGridItemVO();
+        thanks.setType("NONE"); thanks.setName("谢谢惠顾");
+        LotteryGridItemVO add1 = new LotteryGridItemVO();
+        add1.setType("LOTTERY_ADD_1"); add1.setName("抽奖次数+1");
+        LotteryGridItemVO add2 = new LotteryGridItemVO();
+        add2.setType("LOTTERY_ADD_2"); add2.setName("抽奖次数+2");
+        grid.add(thanks); grid.add(add1); grid.add(add2);
+        grid.addAll(couponItems);
+
+        // 7. 补充空格兜底（理论不会触发）
+        while (grid.size() < 9) { grid.add(thanks); }
+        if (grid.size() > 9) grid = grid.subList(0, 9);
+
+        Collections.shuffle(grid);
+        return grid;
+    }
+
+    /** 从已上架策略中按用户兴趣品类取优惠券VO（最多6个） */
+    private List<LotteryGridItemVO> buildGridFromStrategy(List<String> topCategories) {
+        List<LotteryGridItemVO> result = new ArrayList<>();
+        if (!CollectionUtils.isEmpty(topCategories)) {
+            List<LotteryCouponStrategy> strategies =
+                    lotteryStrategyDao.selectOnlineByCategories(topCategories);
+            for (LotteryCouponStrategy s : strategies) {
+                if (result.size() >= 6) break;
+                Coupon c = couponDao.selectByCouponId(s.getCouponId());
+                if (c != null) result.add(toGridItem(c));
+            }
+        }
+        // 品类优惠券不足时，补充任意已上架非保底优惠券
+        if (result.size() < 6) {
+            List<LotteryCouponStrategy> all = lotteryStrategyDao.selectOnlineList();
+            for (LotteryCouponStrategy s : all) {
+                if (result.size() >= 6) break;
+                if (s.getIsFallback() != null && s.getIsFallback() == 1) continue;
+                boolean dup = result.stream().anyMatch(i -> s.getCouponId().equals(i.getCouponId()));
+                if (!dup) {
+                    Coupon c = couponDao.selectByCouponId(s.getCouponId());
+                    if (c != null) result.add(toGridItem(c));
+                }
+            }
+        }
+        return result;
+    }
+
+    private LotteryGridItemVO toGridItem(Coupon c) {
+        LotteryGridItemVO item = new LotteryGridItemVO();
+        item.setType("COUPON");
+        item.setCouponId(c.getCouponId());
+        item.setName(c.getName());
+        item.setCategory(c.getCategory());
+        item.setCouponType(c.getCouponType());
+        item.setValue(c.getValue());
+        return item;
     }
 
     private boolean isSameDate(Date d1, Date d2) {
@@ -151,30 +246,30 @@ public class LotteryServiceImpl implements ILotteryService {
         userLotteryDao.update(record);
     }
 
-    private List<String> getTopCategories(String userId) {
-        UserInfo user = userDao.selectByUserId(userId);
-        List<ProductInfo> candidates = productDao.selectAll();
-        List<ProductInfo> recommend = userCFModel.recommend(user, candidates);
-        if (CollectionUtils.isEmpty(recommend)) {
+    /**
+     * 基于用户行为加权获取兴趣品类列表（按权重降序）
+     * 行为权重：view/click=1, collect/cart=3, buy=5
+     */
+    private List<String> getTopCategoriesByBehavior(String userId) {
+        try {
+            List<java.util.Map<String, Object>> rows = userBehaviorDao.selectCategoryWeightByUser(userId);
+            if (CollectionUtils.isEmpty(rows)) return Collections.emptyList();
+            List<String> categories = new ArrayList<>();
+            for (java.util.Map<String, Object> row : rows) {
+                Object cat = row.get("category");
+                if (cat != null && !categories.contains(cat.toString())) {
+                    categories.add(cat.toString());
+                }
+            }
+            return categories;
+        } catch (Exception e) {
+            log.warn("获取用户兴趣品类失败，返回空列表：{}", e.getMessage());
             return Collections.emptyList();
         }
-        List<String> categories = new ArrayList<>();
-        for (ProductInfo p : recommend) {
-            if (p.getCategory() == null) {
-                continue;
-            }
-            if (!categories.contains(p.getCategory())) {
-                categories.add(p.getCategory());
-            }
-            if (categories.size() >= 3) {
-                break;
-            }
-        }
-        return categories;
     }
 
     private List<LotteryGridItemVO> buildGridItems(List<String> topCategories) {
-        int categoryCount = topCategories.size();
+        // 1. 初始化固定的3个基础奖品（1个谢谢惠顾 + 1个抽奖+1 + 1个抽奖+2）
         List<LotteryGridItemVO> items = new ArrayList<>();
 
         LotteryGridItemVO thanks = new LotteryGridItemVO();
@@ -192,37 +287,50 @@ public class LotteryServiceImpl implements ILotteryService {
         add2.setName("抽奖次数+2");
         items.add(add2);
 
+        // 2. 按品类数量规则抽取优惠券
         List<Coupon> couponsPool = new ArrayList<>();
+        int categoryCount = topCategories.size();
+
         if (categoryCount >= 3) {
+            // 品类数=3：每个品类随机取2个（3×2=6）
             for (String category : topCategories.stream().limit(3).collect(Collectors.toList())) {
                 List<Coupon> coupons = couponDao.selectAvailableByCategory(category);
+                // Spring写法：判断集合为空（null/空列表）
                 if (CollectionUtils.isEmpty(coupons)) {
                     continue;
                 }
                 Collections.shuffle(coupons);
-                int take = Math.min(2, coupons.size());
-                couponsPool.addAll(coupons.subList(0, take));
+                couponsPool.addAll(coupons.subList(0, 2));
             }
         } else if (categoryCount == 2) {
+            // 品类数=2：每个品类取全部3个（2×3=6）
             for (String category : topCategories) {
                 List<Coupon> coupons = couponDao.selectAvailableByCategory(category);
+                // Spring写法：判断集合非空（!isEmpty）
                 if (!CollectionUtils.isEmpty(coupons)) {
-                    couponsPool.addAll(coupons);
+                    Collections.shuffle(coupons);
+                    couponsPool.addAll(coupons.subList(0, 3));
                 }
             }
         } else if (categoryCount == 1) {
+            // 品类数=1：取该品类全部3个，重复2遍（3×2=6）
             String category = topCategories.get(0);
             List<Coupon> coupons = couponDao.selectAvailableByCategory(category);
             if (!CollectionUtils.isEmpty(coupons)) {
-                couponsPool.addAll(coupons);
-                couponsPool.addAll(coupons);
+                Collections.shuffle(coupons);
+                List<Coupon> categoryCoupons = coupons.subList(0, 3);
+                couponsPool.addAll(categoryCoupons);
+                couponsPool.addAll(categoryCoupons);
             }
         }
 
-        if (couponsPool.size() > 6) {
-            couponsPool = couponsPool.subList(0, 6);
+        // 3. 校验优惠券数量（仅日志提示，无重复补充）
+        if (couponsPool.size() != 6) {
+            log.warn("优惠券数量异常，预期6个，实际{}个，品类数：{}", couponsPool.size(), categoryCount);
+            couponsPool = couponsPool.stream().limit(6).collect(Collectors.toList());
         }
 
+        // 4. 转换优惠券为VO
         for (Coupon coupon : couponsPool) {
             LotteryGridItemVO item = new LotteryGridItemVO();
             item.setType("COUPON");
@@ -234,16 +342,20 @@ public class LotteryServiceImpl implements ILotteryService {
             items.add(item);
         }
 
+        // 5. 兜底（仅异常时触发）
         while (items.size() < 9) {
             LotteryGridItemVO placeholder = new LotteryGridItemVO();
             placeholder.setType("NONE");
             placeholder.setName("谢谢惠顾");
             items.add(placeholder);
         }
-
         if (items.size() > 9) {
             items = items.subList(0, 9);
         }
+
+        // 6. 整体乱序
+        Collections.shuffle(items);
+
         return items;
     }
 }

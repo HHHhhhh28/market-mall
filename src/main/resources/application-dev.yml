@@ -17,7 +17,7 @@ spring:
   datasource:
     username: root
     password: h66h66
-    url: jdbc:mysql://127.0.0.1:13306/market_mall?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=UTC&useSSL=true
+    url: jdbc:mysql://127.0.0.1:13306/market_mall?useUnicode=true&characterEncoding=utf8&autoReconnect=true&zeroDateTimeBehavior=convertToNull&serverTimezone=Asia/Shanghai&useSSL=true
     driver-class-name: com.mysql.cj.jdbc.Driver
   hikari:
     pool-name: Retail_HikariCP
@@ -90,15 +90,7 @@ xxl:
       logretentiondays: 30
 
 
-dubbo:
-  application:
-    name: group-buy-market
-    version: 1.0
-  registry:
-    address: nacos://127.0.0.1:8848
-  protocol:
-    name: dubbo
-    port: -1
+
 
 # 日志
 logging:

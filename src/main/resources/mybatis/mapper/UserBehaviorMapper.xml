@@ -32,6 +32,13 @@
         WHERE create_time >= DATE_SUB(NOW(), INTERVAL #{days} DAY)
     </select>
 
+    <select id="selectProductIdsByUserAndDays" resultType="java.lang.String">
+        SELECT DISTINCT product_id
+        FROM user_behavior
+        WHERE user_id = #{userId}
+          AND create_time >= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+    </select>
+
     <select id="selectWeightedUserProfileByProductId" resultType="com.zky.algorithm.impl.UserProfileModel$BehaviorUserProfile">
         SELECT
         CASE WHEN u.gender = 0 THEN '女' WHEN u.gender = 1 THEN '男' ELSE '通用' END AS gender,
@@ -64,6 +71,25 @@
         WHERE product_id = #{productId}
           AND create_time >= DATE_SUB(NOW(), INTERVAL #{days} DAY)
           AND behavior_type IN ('CLICK','COLLECT','BUY')
+    </select>
+
+
+    <!-- 查询指定用户品类行为加权统计：view/click=1, collect/cart=3, buy=5 -->
+    <select id="selectCategoryWeightByUser" resultType="java.util.Map">
+        SELECT p.category,
+               SUM(CASE ub.behavior_type
+                   WHEN 'VIEW'    THEN 1
+                   WHEN 'CLICK'   THEN 1
+                   WHEN 'COLLECT' THEN 3
+                   WHEN 'CART'    THEN 3
+                   WHEN 'BUY'     THEN 5
+                   ELSE 1 END) AS totalWeight
+        FROM user_behavior ub
+        INNER JOIN product_info p ON ub.product_id = p.product_id
+        WHERE ub.user_id = #{userId}
+          AND p.category IS NOT NULL
+        GROUP BY p.category
+        ORDER BY totalWeight DESC
     </select>
 
 </mapper>
