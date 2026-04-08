@@ -27,14 +27,17 @@
     <select id="selectJoinableTeams" resultMap="BaseResultMap">
         SELECT t.* FROM group_buy_team t
         WHERE t.activity_id = #{activityId}
+          AND t.product_id = #{productId}
           AND t.status = 0
           AND t.current_people &lt; t.required_people
           AND t.end_time &gt; NOW()
-          AND NOT EXISTS (
-              SELECT 1 FROM group_buy_team_member m
-              WHERE m.team_id = t.team_id
-                AND m.user_id = #{userId}
-          )
+          <if test="userId != null and userId != ''">
+            AND NOT EXISTS (
+                SELECT 1 FROM group_buy_team_member m
+                WHERE m.team_id = t.team_id
+                  AND m.user_id = #{userId}
+            )
+          </if>
         ORDER BY t.current_people DESC, t.create_time ASC
     </select>
 
@@ -72,5 +75,20 @@
         WHERE status = 0
           AND end_time &lt; NOW()
     </update>
+
+    <!-- 查询指定商品下所有进行中的团队 -->
+    <select id="selectOpenTeamsByProductId" resultMap="BaseResultMap">
+        SELECT * FROM group_buy_team
+        WHERE product_id = #{productId}
+          AND status = 0
+          AND end_time &gt; NOW()
+        ORDER BY current_people DESC, create_time ASC
+    </select>
+
+    <!-- 查询所有团队（管理端用） -->
+    <select id="selectAllTeams" resultMap="BaseResultMap">
+        SELECT * FROM group_buy_team
+        ORDER BY create_time DESC
+    </select>
 
 </mapper>

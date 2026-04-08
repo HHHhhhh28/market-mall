@@ -78,4 +78,46 @@
             oi.product_id
     </select>
 
+    <select id="selectOrderItemsByUserId" resultMap="OrderItemResultMap">
+        SELECT oi.* FROM order_info o
+        INNER JOIN order_item oi ON o.order_id = oi.order_id
+        WHERE o.user_id = #{userId}
+        ORDER BY o.create_time DESC
+    </select>
+
+    <select id="countSalesByProductId" resultType="java.lang.Integer">
+        SELECT COALESCE(SUM(oi.quantity), 0)
+        FROM order_item oi
+        WHERE oi.product_id = #{productId}
+    </select>
+
+    <!-- 近N天指定品类订单数和活跃买家数 -->
+    <select id="selectCategoryStats" resultType="java.util.Map">
+        SELECT
+            COUNT(DISTINCT o.order_id) AS orderCount,
+            COUNT(DISTINCT o.user_id)  AS userCount,
+            COALESCE(AVG(o.total_amount), 0) AS avgOrderPrice
+        FROM order_info o
+        INNER JOIN order_item oi ON o.order_id = oi.order_id
+        INNER JOIN product_info p ON oi.product_id = p.product_id
+        WHERE p.category = #{category}
+          AND o.create_time &gt;= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+          AND o.status IN (1,2,3)
+    </select>
+
+    <!-- 近N天有多次购买该品类的用户数 -->
+    <select id="selectRepeatBuyerCount" resultType="java.lang.Integer">
+        SELECT COUNT(*) FROM (
+            SELECT o.user_id
+            FROM order_info o
+            INNER JOIN order_item oi ON o.order_id = oi.order_id
+            INNER JOIN product_info p ON oi.product_id = p.product_id
+            WHERE p.category = #{category}
+              AND o.create_time &gt;= DATE_SUB(NOW(), INTERVAL #{days} DAY)
+              AND o.status IN (1,2,3)
+            GROUP BY o.user_id
+            HAVING COUNT(DISTINCT o.order_id) &gt;= 2
+        ) t
+    </select>
+
 </mapper>

@@ -12,7 +12,7 @@ public class OrderInfoRequestDTO {
     private String contactPhone;
     private String productId; // 拼团需要的单个商品ID
     private String teamId;
-    private Long activityId;
+    private String activityId;
     private String productType; //'商品类型：NORMAL-普通商品、GROUP_BUY-拼团商品、AWARD-抽奖商品'
     private String couponId;
 }

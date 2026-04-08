@@ -25,7 +25,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
- * 基于用户的协同过滤推荐算法（UserCF）
+ * 基于用户的协同过滤推荐算法（UserCF）抽奖
  * 核心规则：
  * 1. 计算当前用户与其他用户的行为相似度（余弦相似度）；
  * 2. 筛选相似度TopN的相似用户，收集其交互过但当前用户未交互的商品；

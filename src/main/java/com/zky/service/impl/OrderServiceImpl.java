@@ -1,9 +1,11 @@
 package com.zky.service.impl;
 
 import com.zky.dao.GroupBuyActivityDao;
+import com.zky.dao.GroupBuyProductDao;
 import com.zky.dao.GroupBuyTeamDao;
 import com.zky.dao.GroupBuyTeamMemberDao;
 import com.zky.domain.po.GroupBuyActivity;
+import com.zky.domain.po.GroupBuyProduct;
 import com.zky.domain.po.GroupBuyTeam;
 import com.zky.domain.po.GroupBuyTeamMember;
 import com.zky.dao.CartDao;
@@ -52,6 +54,8 @@ public class OrderServiceImpl implements IOrderService {
     private UserLotteryDao userLotteryDao;
     @Resource
     private GroupBuyActivityDao groupBuyActivityDao;
+    @Resource
+    private GroupBuyProductDao groupBuyProductDao;
     @Resource
     private GroupBuyTeamDao groupBuyTeamDao;
     @Resource
@@ -127,7 +131,7 @@ public class OrderServiceImpl implements IOrderService {
             if (coupon == null || coupon.getStatus() == null || coupon.getStatus() != 1) {
                 throw new RuntimeException("优惠券不存在或已失效");
             }
-            if (!categories.contains(coupon.getCategory())) {
+            if (!"通用".equals(coupon.getCategory()) && !categories.contains(coupon.getCategory())) {
                 throw new RuntimeException("优惠券品类与订单不匹配");
             }
             BigDecimal discountAmount = calculateDiscount(totalAmount, coupon);
@@ -206,7 +210,7 @@ public class OrderServiceImpl implements IOrderService {
         if (request.getProductId() == null || request.getProductId().isEmpty()) {
             throw new RuntimeException("拼团订单必须指定一个商品");
         }
-        if (request.getActivityId() == null || request.getActivityId().isEmpty()) {
+        if (request.getActivityId() == null || request.getActivityId().trim().isEmpty()) {
             throw new RuntimeException("拼团订单必须指定活动ID");
         }
         // 1. 校验活动
@@ -225,6 +229,12 @@ public class OrderServiceImpl implements IOrderService {
         }
         if (product.getStock() == null || product.getStock() < 1) {
             throw new RuntimeException("商品【" + product.getName() + "】库存不足");
+        }
+        // 2.1 查询拼团策略记录（获取拼团价）
+        GroupBuyProduct gbp = groupBuyProductDao.selectByActivityAndProduct(
+                request.getActivityId(), request.getProductId());
+        if (gbp == null || gbp.getStatus() != 1) {
+            throw new RuntimeException("该商品未上架拼团活动");
         }
         // 3. 确定团队
         GroupBuyTeam team;
@@ -255,12 +265,12 @@ public class OrderServiceImpl implements IOrderService {
             team = new GroupBuyTeam();
             team.setTeamId(UUID.randomUUID().toString());
             team.setActivityId(activity.getActivityId());
-            team.setProductId(activity.getProductId());
+            team.setProductId(request.getProductId());
             team.setLeaderUserId(request.getUserId());
             team.setRequiredPeople(activity.getRequiredPeople());
             team.setCurrentPeople(0);
             team.setStatus(0);
-            team.setGroupBuyPrice(activity.getGroupBuyPrice());
+            team.setGroupBuyPrice(gbp.getGroupBuyPrice());
             team.setStartTime(now);
             team.setEndTime(cal.getTime());
             groupBuyTeamDao.insert(team);
@@ -280,7 +290,7 @@ public class OrderServiceImpl implements IOrderService {
         orderInfo.setOrderId(orderId);
         orderInfo.setUserId(request.getUserId());
         orderInfo.setTotalPrice(payPrice);
-        orderInfo.setStatus("0"); // 拼团中，等待成团后发货
+        orderInfo.setStatus("1"); // 拼团订单直接标记为已付款
         orderInfo.setAddress(request.getAddress());
         orderInfo.setContactName(request.getContactName());
         orderInfo.setContactPhone(request.getContactPhone());
@@ -298,7 +308,7 @@ public class OrderServiceImpl implements IOrderService {
         member.setMemberId(UUID.randomUUID().toString());
         member.setTeamId(team.getTeamId());
         member.setActivityId(activity.getActivityId());
-        member.setProductId(activity.getProductId());
+        member.setProductId(request.getProductId());
         member.setUserId(request.getUserId());
         member.setOrderId(orderId);
         member.setPayPrice(payPrice);
@@ -329,9 +339,29 @@ public class OrderServiceImpl implements IOrderService {
         vo.setAddress(order.getAddress());
         vo.setContactName(order.getContactName());
         vo.setContactPhone(order.getContactPhone());
+        vo.setCouponId(order.getCouponId());
 
-        List<OrderItem> items = orderDao.selectOrderItemsByOrderId(order.getOrderId());
-        List<OrderItemVO> itemVOs = items.stream()
+        // 填充优惠券相关信息
+        List<OrderItem> allItems = orderDao.selectOrderItemsByOrderId(order.getOrderId());
+        BigDecimal originalPrice = allItems.stream()
+                .map(i -> i.getPrice().multiply(new BigDecimal(i.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        vo.setOriginalPrice(originalPrice);
+        if (order.getCouponId() != null && !order.getCouponId().isEmpty()) {
+            Coupon coupon = couponDao.selectByCouponId(order.getCouponId());
+            if (coupon != null) {
+                vo.setCouponName(coupon.getName());
+                BigDecimal discount = calculateDiscount(originalPrice, coupon);
+                vo.setDiscountAmount(discount);
+                // 如果订单totalPrice已经是优惠后价格，originalPrice就用totalPrice+discount
+                // 如果totalPrice等于originalPrice（旧数据），originalPrice才是真实原价
+                if (originalPrice.subtract(order.getTotalPrice()).compareTo(BigDecimal.valueOf(0.001)) < 0) {
+                    // 旧订单：totalPrice未扣减，重新设置originalPrice就是当前totalPrice
+                    vo.setOriginalPrice(originalPrice);
+                }
+            }
+        }
+        List<OrderItemVO> itemVOs = allItems.stream()
                 // 2. 根据productTypes筛选订单项（核心改动）
                 .filter(item -> {
                     // 如果传null/空列表，代表“全部”，不筛选

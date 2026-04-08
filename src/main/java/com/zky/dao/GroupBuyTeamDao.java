@@ -21,6 +21,7 @@ public interface GroupBuyTeamDao {
      */
     List<GroupBuyTeam> selectJoinableTeams(
             @Param("activityId") String activityId,
+            @Param("productId") String productId,
             @Param("userId") String userId);
 
     /** 插入新团队 */
@@ -34,4 +35,10 @@ public interface GroupBuyTeamDao {
 
     /** 批量更新超时未成团的团队状态为失败（定时任务用） */
     int updateExpiredTeamsToFailed();
+
+    /** 查询指定商品下所有进行中的团队（用于展示拼团进度） */
+    List<GroupBuyTeam> selectOpenTeamsByProductId(@Param("productId") String productId);
+
+    /** 查询所有团队（管理端用，支持分页） */
+    List<GroupBuyTeam> selectAllTeams();
 }

@@ -4,6 +4,7 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.util.Date;
+import java.util.List;
 
 /**
  * 用户拼团进度VO（用于我的拼团进度页）
@@ -54,4 +55,17 @@ public class GroupBuyProgressVO {
 
     /** 关联订单ID */
     private String orderId;
+
+    /** 团队成员列表 */
+    private List<MemberVO> members;
+
+    @Data
+    public static class MemberVO {
+        private String userId;
+        private String username;
+        private Integer gender;
+        private Integer isLeader;
+        private BigDecimal payPrice;
+        private Date joinTime;
+    }
 }

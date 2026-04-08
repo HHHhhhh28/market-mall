@@ -19,6 +19,11 @@ public interface UserBehaviorDao {
     List<String> selectProductIdsWithBehavior(@Param("days") Integer days);
 
     /**
+     * 查询指定用户近N天有行为的商品ID
+     */
+    List<String> selectProductIdsByUserAndDays(@Param("userId") String userId, @Param("days") Integer days);
+
+    /**
      * 查询单商品近N天的加权用户画像统计
      */
     List<UserProfileModel.BehaviorUserProfile> selectWeightedUserProfileByProductId(
@@ -30,4 +35,11 @@ public interface UserBehaviorDao {
             @Param("productId") String productId,
             @Param("days") Integer days
     );
+
+    /**
+     * 查询指定用户的品类行为加权统计
+     * 权重：view=1, cart/collect=3, buy=5
+     * 返回按权重降序排列的品类列表
+     */
+    List<java.util.Map<String, Object>> selectCategoryWeightByUser(@Param("userId") String userId);
 }

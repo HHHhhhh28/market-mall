@@ -49,6 +49,7 @@ public class FavoriteServiceImpl implements IFavoriteService {
             FavoriteVO vo = new FavoriteVO();
             vo.setFavoriteId(f.getFavoriteId());
             vo.setProductId(f.getProductId());
+            vo.setFavoriteCount(favoriteDao.countByProductId(f.getProductId()));
             if (p != null) {
                 vo.setProductName(p.getName());
                 vo.setProductImage(p.getImageUrl());

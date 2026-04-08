@@ -50,7 +50,7 @@
         SELECT COUNT(*) FROM user_info WHERE DATE(create_time) = CURDATE()
     </select>
 
-    <select id="selectCityDistribution" resultType="java.util.Map">
+     <select id="selectCityDistribution" resultType="java.util.Map">
         SELECT city as city, COUNT(*) as count 
         FROM user_info 
         WHERE city IS NOT NULL AND city != '' 

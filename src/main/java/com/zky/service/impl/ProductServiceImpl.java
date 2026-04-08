@@ -1,17 +1,15 @@
 package com.zky.service.impl;
 
-import com.alibaba.nacos.api.remote.response.ResponseCode;
-import com.github.pagehelper.Page;
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
 
 import java.util.ArrayList;
-import java.util.Collections;
 
 import com.zky.algorithm.RecommendationStrategy;
 import com.zky.dao.GroupBuyActivityDao;
+import com.zky.dao.GroupBuyProductDao;
 import com.zky.domain.po.GroupBuyActivity;
-import com.zky.common.enums.RecommendationType;
+import com.zky.domain.po.GroupBuyProduct;
 import com.zky.common.constans.Constants;
 import com.zky.dao.OrderDao;
 import com.zky.dao.ProductDao;
@@ -19,7 +17,6 @@ import com.zky.dao.UserDao;
 import com.zky.domain.dto.GroupBuyProductInfoRequestDTO;
 import com.zky.domain.dto.ProductInfoRequestDTO;
 import com.zky.domain.po.ProductInfo;
-import com.zky.domain.po.UserInfo;
 import com.zky.domain.vo.GroupBuyProductVO;
 import com.zky.service.IProductService;
 import com.zky.service.IRedisService;
@@ -27,7 +24,6 @@ import com.zky.domain.vo.ProductDetailVO;
 import com.zky.domain.vo.ProductVO;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.dubbo.config.annotation.DubboReference;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
@@ -57,6 +53,9 @@ public class ProductServiceImpl implements IProductService {
 
     @Resource
     private GroupBuyActivityDao groupBuyActivityDao;
+
+    @Resource
+    private GroupBuyProductDao groupBuyProductDao;
 
     @Override
     public ProductDetailVO getProductDetail(String productId) {
@@ -161,16 +160,20 @@ public class ProductServiceImpl implements IProductService {
         }
         // 复制商品基础属性
         BeanUtils.copyProperties(productInfo, groupBuyVO);
-        // 查询该商品当前进行中的拼团活动
-        GroupBuyActivity activity = groupBuyActivityDao.selectActiveByProductId(productInfo.getProductId());
-        if (activity != null) {
-            groupBuyVO.setPayPrice(activity.getGroupBuyPrice());
-            groupBuyVO.setActivityId(activity.getActivityId());
-            groupBuyVO.setTargetCount(activity.getRequiredPeople());
-            groupBuyVO.setActivityStartTime(activity.getStartTime());
-            groupBuyVO.setActivityEndTime(activity.getEndTime());
+        // 查询该商品当前已上架的拼团策略记录（优先取最新一条）
+        GroupBuyProduct gbp = groupBuyProductDao.selectLatestByProductId(productInfo.getProductId());
+        if (gbp != null && gbp.getStatus() == 1) {
+            groupBuyVO.setPayPrice(gbp.getGroupBuyPrice());
+            groupBuyVO.setActivityId(gbp.getActivityId());
+            // 从全局活动获取人数和时间配置
+            GroupBuyActivity activity = groupBuyActivityDao.selectByActivityId(gbp.getActivityId());
+            if (activity != null) {
+                groupBuyVO.setTargetCount(activity.getRequiredPeople());
+                groupBuyVO.setActivityStartTime(activity.getStartTime());
+                groupBuyVO.setActivityEndTime(activity.getEndTime());
+            }
         } else {
-            log.info("商品{}暂无进行中的拼团活动", productInfo.getProductId());
+            log.info("商品{}暂无已上架的拼团策略", productInfo.getProductId());
         }
         return groupBuyVO;
     }
@@ -186,6 +189,14 @@ public class ProductServiceImpl implements IProductService {
         vo.setImageUrl(entity.getImageUrl());
         vo.setCategory(entity.getCategory());
         vo.setBrand(entity.getBrand());
+        // 统计订单中该商品的总销售数量
+        try {
+            Integer sales = orderDao.countSalesByProductId(entity.getProductId());
+            vo.setSales(sales != null ? sales : 0);
+        } catch (Exception e) {
+            log.warn("查询商品{}已售数量失败", entity.getProductId(), e);
+            vo.setSales(0);
+        }
         return vo;
     }
 

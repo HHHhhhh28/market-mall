@@ -15,4 +15,8 @@ public class OrderVO {
     private String contactPhone;
     private Date createTime;
     private List<OrderItemVO> items;
+    private String couponId;
+    private String couponName;
+    private java.math.BigDecimal originalPrice;
+    private java.math.BigDecimal discountAmount;
 }
