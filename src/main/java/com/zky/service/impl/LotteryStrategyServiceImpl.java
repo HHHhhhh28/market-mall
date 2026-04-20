@@ -58,11 +58,11 @@ public class LotteryStrategyServiceImpl implements ILotteryStrategyService {
      */
     private static class MarketData {
         /** 近30天订单总数 */
-        int orderCount30d; 
+        int orderCount30d;
         /** 近30天活跃用户数 */
-        int userCount30d; 
+        int userCount30d;
         /** 平均客单价 */
-        double avgOrderPrice; 
+        double avgOrderPrice;
         /** 复购率 */
         double repeatBuyRate;
     }
@@ -72,13 +72,13 @@ public class LotteryStrategyServiceImpl implements ILotteryStrategyService {
      */
     private static class ElasticityResult {
         /** 综合弹性得分 */
-        double score; 
+        double score;
         /** 订单密度得分 */
-        double densityScore; 
+        double densityScore;
         /** 复购惯性得分 */
-        double repeatScore; 
+        double repeatScore;
         /** 价格感知得分 */
-        double perceptionScore; 
+        double perceptionScore;
         /** 优惠敏感得分 */
         double sensitivityScore;
     }
@@ -89,47 +89,68 @@ public class LotteryStrategyServiceImpl implements ILotteryStrategyService {
      */
     @Override
     public LotteryStrategyVO analyzeCoupon(String couponId) {
+        log.info("========== 抽奖策略算法开始执行 ==========");
+        log.info("输入参数：couponId={}", couponId);
+
         // 1. 获取优惠券基础信息
         Coupon coupon = couponDao.selectByCouponId(couponId);
         if (coupon == null) throw new RuntimeException("优惠券不存在：" + couponId);
+        log.info("【1/8】获取优惠券基础信息完成：优惠券ID={}, 优惠券名称={}, 优惠券类型={}, 优惠券面值={}, 适用品类={}",
+                coupon.getCouponId(), coupon.getName(), coupon.getCouponType(), coupon.getValue(), coupon.getCategory());
 
         // 2. 采集所属品类的市场大盘数据
         MarketData market = collectMarketData(coupon.getCategory());
         double avgPrice = market.avgOrderPrice;
+        log.info("【2/8】采集所属品类的市场大盘数据完成：近30天订单数={}, 活跃用户数={}, 平均客单价={}, 复购率={}",
+                market.orderCount30d, market.userCount30d, avgPrice, market.repeatBuyRate);
 
         // 3. 计算优惠券的实际让利金额（处理折扣券/直减券/满减券）
         double actualDiscount = calcActualDiscount(coupon, avgPrice);
         // 获取品类基准毛利率
         double margin = CATEGORY_MARGIN.getOrDefault(coupon.getCategory(), 0.25);
+        log.info("【3/8】计算优惠券实际让利与品类毛利率完成：实际让利金额={}, 品类基准毛利率={}%",
+                actualDiscount, margin * 100);
 
         // 4. 计算需求价格弹性模型
         ElasticityResult elasticity = calcElasticity(market, actualDiscount, avgPrice);
+        log.info("【4/8】计算需求价格弹性模型完成：综合弹性分={}/100, 订单密度={}/30, 复购惯性={}/25, 价格感知={}/25, 优惠敏感={}/20",
+                elasticity.score, elasticity.densityScore, elasticity.repeatScore,
+                elasticity.perceptionScore, elasticity.sensitivityScore);
 
         // 5. 预测业务增益指标
         // 预测转化率提升
         double conversionLift = calcConversionLift(elasticity.score, actualDiscount, avgPrice);
         // 预测销量提升（结合复购率）
         double volumeLift = conversionLift * (1 + market.repeatBuyRate * 0.5);
-        
+        log.info("【5/8】预测业务增益指标完成：转化率提升={}%, 销量提升={}%",
+                conversionLift * 100, volumeLift * 100);
+
         // 6. 财务模型计算
         double discountRatio = avgPrice > 0 ? actualDiscount / avgPrice : 0;
         // 计算净利润率变动（考虑销量提升带来的边际贡献）
         double netProfitRate = Math.max(margin - discountRatio + volumeLift * 0.05, -0.05);
         // 计算综合 ROI 评分 (0-100)
         double roiScore = Math.min(100, Math.max(0, calcROI(margin, netProfitRate, volumeLift, elasticity.score, discountRatio)));
-        
+        log.info("【6/8】财务模型计算完成：优惠占比={}%, 净利润率={}%, 综合ROI评分={}/100",
+                discountRatio * 100, netProfitRate * 100, roiScore);
+
         // 7. 计算盈亏平衡点让利上限
         double breakEvenDiscount = avgPrice * (margin - MIN_MARGIN);
         // 预测带来的总营收增长
         double expectedRevenueLift = avgPrice * volumeLift * Math.max(market.orderCount30d, 10);
+        log.info("【7/8】计算盈亏平衡与营收增长完成：盈亏平衡点让利上限={}, 预测总营收增长={}",
+                breakEvenDiscount, expectedRevenueLift);
 
         // 8. 封装分析结果 VO
         LotteryCouponStrategy existing = strategyDao.selectByCouponId(couponId);
+        int onlineStatus = existing != null ? existing.getStatus() : 0;
+        log.info("【8/8】获取当前上架状态完成：onlineStatus={}", onlineStatus);
+
         LotteryStrategyVO vo = new LotteryStrategyVO();
         vo.setCouponId(couponId); vo.setCouponName(coupon.getName());
         vo.setCategory(coupon.getCategory()); vo.setCouponType(coupon.getCouponType());
         vo.setCouponValue(coupon.getValue()); vo.setMinOrderAmount(calcMinOrderAmount(coupon));
-        vo.setStatus(existing != null ? existing.getStatus() : 0);
+        vo.setStatus(onlineStatus);
         vo.setAvgOrderPrice(bd(avgPrice)); vo.setCategoryMargin(bd(margin));
         vo.setOrderCount30d(market.orderCount30d); vo.setUserCount30d(market.userCount30d);
         vo.setRepeatBuyRate(bd(market.repeatBuyRate));
@@ -138,15 +159,21 @@ public class LotteryStrategyServiceImpl implements ILotteryStrategyService {
         vo.setNetProfitRate(bd(netProfitRate)); vo.setRoiScore(bd(roiScore));
         vo.setRoiLevel(roiLevel(roiScore)); vo.setBreakEvenDiscount(bd(breakEvenDiscount));
         vo.setExpectedRevenueLift(bd(expectedRevenueLift));
-        
+
         // 生成算法可解释性说明文本
         vo.setRecommendReason(buildReason(coupon, market, elasticity, roiScore,
                 netProfitRate, conversionLift, volumeLift, actualDiscount, breakEvenDiscount, avgPrice));
+
+        log.info("========== 抽奖策略算法执行完成 ==========");
+        log.info("最终结果：优惠券={}, 品类={}, 实际让利={}, 净利润率={}%, ROI评分={}, ROI等级={}",
+                coupon.getName(), coupon.getCategory(), actualDiscount, netProfitRate * 100, roiScore, roiLevel(roiScore));
         return vo;
     }
 
     @Override @Transactional
     public void onlineCoupon(String couponId) {
+        log.info("========== 抽奖优惠券上架开始 ==========");
+        log.info("输入参数：couponId={}", couponId);
         Coupon coupon = couponDao.selectByCouponId(couponId);
         if (coupon == null) throw new RuntimeException("优惠券不存在");
         if (coupon.getStatus() == null || coupon.getStatus() == 0) {
@@ -157,6 +184,7 @@ public class LotteryStrategyServiceImpl implements ILotteryStrategyService {
         if (existing != null) {
             fillStrategy(existing, vo); existing.setStatus(1);
             strategyDao.update(existing); strategyDao.updateStatus(couponId, 1);
+            log.info("更新已有抽奖优惠券成功");
         } else {
             LotteryCouponStrategy s = new LotteryCouponStrategy();
             s.setStrategyId(UUID.randomUUID().toString()); s.setCouponId(couponId);
@@ -164,23 +192,34 @@ public class LotteryStrategyServiceImpl implements ILotteryStrategyService {
             s.setCouponValue(coupon.getValue()); s.setMinOrderAmount(vo.getMinOrderAmount());
             s.setIsFallback(0); s.setStatus(1); fillStrategy(s, vo);
             strategyDao.insert(s);
+            log.info("新增抽奖优惠券成功");
         }
+        log.info("========== 抽奖优惠券上架完成 ==========");
     }
 
     @Override @Transactional
-    public void offlineCoupon(String couponId) { strategyDao.updateStatus(couponId, 2); }
+    public void offlineCoupon(String couponId) {
+        log.info("========== 抽奖优惠券下架开始 ==========");
+        log.info("输入参数：couponId={}", couponId);
+        strategyDao.updateStatus(couponId, 2);
+        log.info("========== 抽奖优惠券下架完成 ==========");
+    }
 
     @Override @Transactional
     public LotteryStrategyVO refreshCoupon(String couponId) {
+        log.info("========== 抽奖优惠券策略刷新开始 ==========");
+        log.info("输入参数：couponId={}", couponId);
         LotteryStrategyVO vo = analyzeCoupon(couponId);
         LotteryCouponStrategy ex = strategyDao.selectByCouponId(couponId);
-        if (ex != null) { fillStrategy(ex, vo); strategyDao.update(ex); }
+        if (ex != null) { fillStrategy(ex, vo); strategyDao.update(ex); log.info("刷新抽奖优惠券策略成功"); }
+        log.info("========== 抽奖优惠券策略刷新完成 ==========");
         return vo;
     }
 
     @Override
     public List<LotteryStrategyVO> listAllStrategies() {
-        return strategyDao.selectAll().stream().map(s -> {
+        log.info("========== 查询所有抽奖策略列表开始 ==========");
+        List<LotteryStrategyVO> result = strategyDao.selectAll().stream().map(s -> {
             Coupon c = couponDao.selectByCouponId(s.getCouponId());
             if (c == null) return null;
             LotteryStrategyVO vo = new LotteryStrategyVO();
@@ -200,10 +239,13 @@ public class LotteryStrategyServiceImpl implements ILotteryStrategyService {
             vo.setBreakEvenDiscount(s.getBreakEvenDiscount()); // 直接读库，与analyze保持一致
             return vo;
         }).filter(Objects::nonNull).collect(Collectors.toList());
+        log.info("========== 查询所有抽奖策略列表完成，共{}条策略 ==========", result.size());
+        return result;
     }
 
 
     private MarketData collectMarketData(String category) {
+        log.info("【collectMarketData】开始采集品类市场数据，category={}", category);
         MarketData m = new MarketData();
         try {
             List<Map<String,Object>> stats = orderDao.selectCategoryStats(category, STAT_DAYS);
@@ -216,6 +258,8 @@ public class LotteryStrategyServiceImpl implements ILotteryStrategyService {
             if (m.avgOrderPrice <= 0) m.avgOrderPrice = 100.0;
             int repeatCount = orderDao.selectRepeatBuyerCount(category, STAT_DAYS);
             m.repeatBuyRate = m.userCount30d > 0 ? (double) repeatCount / m.userCount30d : 0;
+            log.info("【collectMarketData】品类市场数据采集完成：近30天订单数={}, 活跃用户数={}, 平均客单价={}, 复购率={}",
+                    m.orderCount30d, m.userCount30d, m.avgOrderPrice, m.repeatBuyRate);
         } catch (Exception ex) {
             log.warn("品类数据采集异常：{}", ex.getMessage());
             m.avgOrderPrice = 100.0;
@@ -224,70 +268,102 @@ public class LotteryStrategyServiceImpl implements ILotteryStrategyService {
     }
 
     private double calcActualDiscount(Coupon coupon, double avgPrice) {
+        log.info("【calcActualDiscount】开始计算优惠券实际让利，couponType={}, couponValue={}, avgPrice={}",
+                coupon.getCouponType(), coupon.getValue(), avgPrice);
         double v = coupon.getValue().doubleValue();
-        if ("DIRECT".equals(coupon.getCouponType())) return v;
-        if ("FULL".equals(coupon.getCouponType()))   return v;
-        if ("DISCOUNT".equals(coupon.getCouponType())) return avgPrice * (1 - v);
-        return v;
+        double result;
+        if ("DIRECT".equals(coupon.getCouponType())) result = v;
+        else if ("FULL".equals(coupon.getCouponType()))   result = v;
+        else if ("DISCOUNT".equals(coupon.getCouponType())) result = avgPrice * (1 - v);
+        else result = v;
+        log.info("【calcActualDiscount】优惠券实际让利计算完成：actualDiscount={}", result);
+        return result;
     }
 
     private BigDecimal calcMinOrderAmount(Coupon coupon) {
+        log.info("【calcMinOrderAmount】开始计算最低起用金额，couponType={}, couponValue={}",
+                coupon.getCouponType(), coupon.getValue());
+        BigDecimal result;
         if ("FULL".equals(coupon.getCouponType()))
-            return coupon.getValue().multiply(BigDecimal.valueOf(6));
-        return BigDecimal.ZERO;
+            result = coupon.getValue().multiply(BigDecimal.valueOf(6));
+        else result = BigDecimal.ZERO;
+        log.info("【calcMinOrderAmount】最低起用金额计算完成：minOrderAmount={}", result);
+        return result;
     }
 
     private ElasticityResult calcElasticity(MarketData m, double actualDiscount, double avgPrice) {
+        log.info("【calcElasticity】开始计算需求价格弹性，orderCount30d={}, repeatBuyRate={}, actualDiscount={}, avgPrice={}",
+                m.orderCount30d, m.repeatBuyRate, actualDiscount, avgPrice);
         ElasticityResult r = new ElasticityResult();
         r.densityScore    = m.orderCount30d >= 100 ? 30 : m.orderCount30d >= 50 ? 22
-                          : m.orderCount30d >= 20  ? 15 : m.orderCount30d >= 5  ? 8 : 3;
+                : m.orderCount30d >= 20  ? 15 : m.orderCount30d >= 5  ? 8 : 3;
         r.repeatScore     = Math.min(25, m.repeatBuyRate * 50);
         double ratio      = avgPrice > 0 ? actualDiscount / avgPrice : 0;
         r.perceptionScore = Math.min(25, ratio * 100);
         r.sensitivityScore= avgPrice < 50 ? 20 : avgPrice < 100 ? 16
-                          : avgPrice < 300 ? 12 : avgPrice < 1000 ? 7 : 3;
+                : avgPrice < 300 ? 12 : avgPrice < 1000 ? 7 : 3;
         r.score = Math.min(100, r.densityScore + r.repeatScore + r.perceptionScore + r.sensitivityScore);
+        log.info("【calcElasticity】需求价格弹性计算完成：综合分={}/100, 订单密度={}/30, 复购惯性={}/25, 价格感知={}/25, 优惠敏感={}/20",
+                r.score, r.densityScore, r.repeatScore, r.perceptionScore, r.sensitivityScore);
         return r;
     }
 
     private double calcConversionLift(double elasticityScore, double actualDiscount, double avgPrice) {
+        log.info("【calcConversionLift】开始预测转化率提升，elasticityScore={}, actualDiscount={}, avgPrice={}",
+                elasticityScore, actualDiscount, avgPrice);
         double base          = elasticityScore / 100.0;
         double discountFactor = avgPrice > 0 ? Math.min(1.0, actualDiscount / avgPrice * 5) : 0;
-        return base * discountFactor * 0.6;
+        double result = base * discountFactor * 0.6;
+        log.info("【calcConversionLift】转化率提升预测完成：base={}, discountFactor={}, conversionLift={}%",
+                base, discountFactor, result * 100);
+        return result;
     }
 
     private double calcROI(double margin, double netProfitRate, double volumeLift,
                            double elasticityScore, double discountRatio) {
+        log.info("【calcROI】开始计算综合ROI评分，margin={}, netProfitRate={}, volumeLift={}, elasticityScore={}, discountRatio={}",
+                margin, netProfitRate, volumeLift, elasticityScore, discountRatio);
         double profitScore  = (margin > 0 ? netProfitRate / margin : 0) * 40;
         double volumeScore  = Math.min(30, volumeLift * 100);
         double elasticBonus = elasticityScore * 0.30;
-        return Math.max(0, profitScore + volumeScore + elasticBonus);
+        double result = Math.max(0, profitScore + volumeScore + elasticBonus);
+        log.info("【calcROI】综合ROI评分计算完成：盈利得分={}, 销量得分={}, 弹性加分={}, 总ROI评分={}/100",
+                profitScore, volumeScore, elasticBonus, result);
+        return result;
     }
 
     private String roiLevel(double score) {
-        if (score >= 75) return "EXCELLENT";
-        if (score >= 55) return "HIGH";
-        if (score >= 35) return "MID";
-        return "LOW";
+        log.info("【roiLevel】开始判断ROI等级，score={}", score);
+        String level;
+        if (score >= 75) level = "EXCELLENT";
+        else if (score >= 55) level = "HIGH";
+        else if (score >= 35) level = "MID";
+        else level = "LOW";
+        log.info("【roiLevel】ROI等级判断完成：level={}", level);
+        return level;
     }
 
     private String buildReason(Coupon coupon, MarketData m, ElasticityResult e,
                                double roiScore, double netProfitRate, double conversionLift,
                                double volumeLift, double actualDiscount, double breakEvenDiscount, double avgPrice) {
+        log.info("【buildReason】开始生成算法可解释性说明文本");
         String safe = actualDiscount <= breakEvenDiscount ? "商家可安心上架" : "让利超保本线建议调整";
-        return String.format(
+        String reason = String.format(
                 "【%s】%s — 近30天%d笔订单/%d位买家，均价¥%.0f；" +
-                "弹性分%.0f，转化+%.1f%%，销量+%.1f%%；" +
-                "实际让利¥%.2f（保本上限¥%.2f），净利润率%.1f%%，%s；" +
-                "综合ROI %.0f分（%s）。",
+                        "弹性分%.0f，转化+%.1f%%，销量+%.1f%%；" +
+                        "实际让利¥%.2f（保本上限¥%.2f），净利润率%.1f%%，%s；" +
+                        "综合ROI %.0f分（%s）。",
                 coupon.getCategory(), coupon.getName(),
                 m.orderCount30d, m.userCount30d, avgPrice,
                 e.score, conversionLift*100, volumeLift*100,
                 actualDiscount, breakEvenDiscount, netProfitRate*100, safe,
                 roiScore, roiLevel(roiScore));
+        log.info("【buildReason】算法可解释性说明文本生成完成");
+        return reason;
     }
 
     private void fillStrategy(LotteryCouponStrategy s, LotteryStrategyVO vo) {
+        log.info("【fillStrategy】开始填充抽奖策略实体");
         s.setAvgOrderPrice(vo.getAvgOrderPrice());   s.setCategoryMargin(vo.getCategoryMargin());
         s.setOrderCount30d(vo.getOrderCount30d());   s.setUserCount30d(vo.getUserCount30d());
         s.setRepeatBuyRate(vo.getRepeatBuyRate());   s.setElasticityScore(vo.getElasticityScore());
@@ -295,6 +371,7 @@ public class LotteryStrategyServiceImpl implements ILotteryStrategyService {
         s.setActualDiscount(vo.getActualDiscount()); s.setNetProfitRate(vo.getNetProfitRate());
         s.setRoiScore(vo.getRoiScore());             s.setBreakEvenDiscount(vo.getBreakEvenDiscount());
         s.setRecommendReason(vo.getRecommendReason());
+        log.info("【fillStrategy】抽奖策略实体填充完成");
     }
 
     private BigDecimal bd(double v) { return BigDecimal.valueOf(v).setScale(4, RoundingMode.HALF_UP); }

@@ -9,8 +9,6 @@ import com.zky.domain.vo.ProductVO;
 
 public interface IRecommendationService {
 
-    // 拼团商品推荐
-    PageInfo<GroupBuyProductVO> getGroupBuyRecommend(RecommendationRequestDTO request);
     // 首页商品推荐
     PageInfo<HomeProductVO> getMallHomeRecommend(RecommendationRequestDTO request);
 
