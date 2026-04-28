@@ -31,6 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.annotation.Resource;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
@@ -341,26 +342,30 @@ public class OrderServiceImpl implements IOrderService {
         vo.setContactPhone(order.getContactPhone());
         vo.setCouponId(order.getCouponId());
 
-        // 填充优惠券相关信息
+        // 获取该订单的所有订单项
         List<OrderItem> allItems = orderDao.selectOrderItemsByOrderId(order.getOrderId());
+        
+        // 计算原始总价：单价 * 数量
         BigDecimal originalPrice = allItems.stream()
                 .map(i -> i.getPrice().multiply(new BigDecimal(i.getQuantity())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+        
         vo.setOriginalPrice(originalPrice);
+        
+        // 如果使用了优惠券，填充优惠信息
         if (order.getCouponId() != null && !order.getCouponId().isEmpty()) {
             Coupon coupon = couponDao.selectByCouponId(order.getCouponId());
             if (coupon != null) {
                 vo.setCouponName(coupon.getName());
+                // 计算该优惠券相对于原始价格产生的优惠金额
                 BigDecimal discount = calculateDiscount(originalPrice, coupon);
                 vo.setDiscountAmount(discount);
-                // 如果订单totalPrice已经是优惠后价格，originalPrice就用totalPrice+discount
-                // 如果totalPrice等于originalPrice（旧数据），originalPrice才是真实原价
-                if (originalPrice.subtract(order.getTotalPrice()).compareTo(BigDecimal.valueOf(0.001)) < 0) {
-                    // 旧订单：totalPrice未扣减，重新设置originalPrice就是当前totalPrice
-                    vo.setOriginalPrice(originalPrice);
-                }
+                
+                // 确保展示的 totalPrice 确实是优惠后的
+                // 在下单保存时 totalPrice 已经是 subtract(discount) 后的结果了
             }
         }
+        
         List<OrderItemVO> itemVOs = allItems.stream()
                 // 2. 根据productTypes筛选订单项（核心改动）
                 .filter(item -> {
@@ -391,13 +396,21 @@ public class OrderServiceImpl implements IOrderService {
         if (coupon == null || coupon.getCouponType() == null || coupon.getValue() == null) {
             return BigDecimal.ZERO;
         }
-        if ("DIRECT".equals(coupon.getCouponType())) {
-            return coupon.getValue();
+        // 立减券或满减券：直接减去优惠值
+        if ("DIRECT".equals(coupon.getCouponType()) || "FULL".equals(coupon.getCouponType())) {
+            // 确保不会减成负数
+            return coupon.getValue().min(totalAmount);
         }
+        // 折扣券：计算折扣金额 (1 - 折扣率) * 总价
+        // 数据库中 value 为 0.9 代表 9 折，让利比例为 0.1
         if ("DISCOUNT".equals(coupon.getCouponType())) {
-            BigDecimal rate = coupon.getValue().divide(new BigDecimal("100"));
-            BigDecimal discounted = totalAmount.multiply(BigDecimal.ONE.subtract(rate));
-            return discounted.max(BigDecimal.ZERO);
+            BigDecimal discountRate = coupon.getValue();
+            // 如果折扣率大于1（比如存的是 90），则处理为 0.9
+            if (discountRate.compareTo(BigDecimal.ONE) > 0) {
+                discountRate = discountRate.divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+            }
+            BigDecimal discountAmount = totalAmount.multiply(BigDecimal.ONE.subtract(discountRate));
+            return discountAmount.setScale(2, RoundingMode.HALF_UP);
         }
         return BigDecimal.ZERO;
     }
