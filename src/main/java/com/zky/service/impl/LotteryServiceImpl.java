@@ -1,18 +1,9 @@
 package com.zky.service.impl;
 
-import com.zky.algorithm.impl.UserCFModel;
-import com.zky.dao.CouponDao;
-import com.zky.dao.ProductDao;
-import com.zky.dao.UserCouponDao;
-import com.zky.dao.UserDao;
-import com.zky.dao.UserLotteryDao;
-import com.zky.dao.LotteryCouponStrategyDao;
-import com.zky.dao.UserBehaviorDao;
-import com.zky.domain.po.LotteryCouponStrategy;
+import com.zky.dao.*;
 import com.zky.domain.po.Coupon;
-import com.zky.domain.po.ProductInfo;
+import com.zky.domain.po.LotteryCouponStrategy;
 import com.zky.domain.po.UserCoupon;
-import com.zky.domain.po.UserInfo;
 import com.zky.domain.po.UserLottery;
 import com.zky.domain.vo.LotteryDrawResultVO;
 import com.zky.domain.vo.LotteryGridItemVO;
@@ -34,12 +25,6 @@ public class LotteryServiceImpl implements ILotteryService {
 
     @Resource
     private UserLotteryDao userLotteryDao;
-    @Resource
-    private UserDao userDao;
-    @Resource
-    private ProductDao productDao;
-    @Resource
-    private UserCFModel userCFModel;
     @Resource
     private CouponDao couponDao;
     @Resource

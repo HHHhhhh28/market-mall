@@ -2,32 +2,28 @@ package com.zky.service.impl;
 
 import com.github.pagehelper.PageHelper;
 import com.github.pagehelper.PageInfo;
-
-import java.util.ArrayList;
-
-import com.zky.algorithm.RecommendationStrategy;
+import com.zky.common.constans.Constants;
 import com.zky.dao.GroupBuyActivityDao;
 import com.zky.dao.GroupBuyProductDao;
-import com.zky.domain.po.GroupBuyActivity;
-import com.zky.domain.po.GroupBuyProduct;
-import com.zky.common.constans.Constants;
 import com.zky.dao.OrderDao;
 import com.zky.dao.ProductDao;
-import com.zky.dao.UserDao;
 import com.zky.domain.dto.GroupBuyProductInfoRequestDTO;
 import com.zky.domain.dto.ProductInfoRequestDTO;
+import com.zky.domain.po.GroupBuyActivity;
+import com.zky.domain.po.GroupBuyProduct;
 import com.zky.domain.po.ProductInfo;
 import com.zky.domain.vo.GroupBuyProductVO;
-import com.zky.service.IProductService;
-import com.zky.service.IRedisService;
 import com.zky.domain.vo.ProductDetailVO;
 import com.zky.domain.vo.ProductVO;
+import com.zky.service.IProductService;
+import com.zky.service.IRedisService;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.Resource;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
@@ -41,12 +37,6 @@ public class ProductServiceImpl implements IProductService {
 
     @Resource
     private OrderDao orderDao;
-
-    @Resource
-    private UserDao userDao;
-
-    @Resource
-    private List<RecommendationStrategy> strategies;
 
     @Resource
     private IRedisService redisService;

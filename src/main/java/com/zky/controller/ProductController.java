@@ -4,7 +4,6 @@ import com.github.pagehelper.PageInfo;
 import com.zky.common.response.Response;
 import com.zky.domain.dto.GroupBuyProductInfoRequestDTO;
 import com.zky.domain.dto.ProductInfoRequestDTO;
-import com.zky.domain.dto.RecommendationRequestDTO;
 import com.zky.domain.vo.GroupBuyProductVO;
 import com.zky.service.IProductService;
 import com.zky.domain.vo.ProductDetailVO;

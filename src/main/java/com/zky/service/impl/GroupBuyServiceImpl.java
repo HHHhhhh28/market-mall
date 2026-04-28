@@ -40,11 +40,6 @@ public class GroupBuyServiceImpl implements IGroupBuyService {
     @Resource private FavoriteDao favoriteDao;
     @Resource private UserDao userDao;
 
-    @Override
-    public PageInfo<GroupBuyActivityVO> getActiveGroupBuyList(int pageNum, int pageSize) {
-        return getActiveGroupBuyListForUser(pageNum, pageSize, null);
-    }
-
     /**
      * 获取拼团活动列表，按用户兴趣过滤
      * 如果 userId 为空，返回所有已上架商品

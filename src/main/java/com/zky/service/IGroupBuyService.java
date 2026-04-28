@@ -1,6 +1,5 @@
 package com.zky.service;
 
-import com.github.pagehelper.PageInfo;
 import com.zky.domain.dto.GroupBuyActivityRequestDTO;
 import com.zky.domain.dto.GroupBuyJoinRequestDTO;
 import com.zky.domain.vo.GroupBuyActivityVO;
@@ -14,14 +13,6 @@ import java.util.List;
  */
 public interface IGroupBuyService {
 
-    /**
-     * 获取当前所有进行中的拼团活动列表（用于拼团推荐页展示）
-     *
-     * @param pageNum  页码
-     * @param pageSize 每页数量
-     * @return 分页后的拼团活动列表
-     */
-    PageInfo<GroupBuyActivityVO> getActiveGroupBuyList(int pageNum, int pageSize);
 
     /**
      * 获取某个活动的详情（包含当前可加入的团队列表）
